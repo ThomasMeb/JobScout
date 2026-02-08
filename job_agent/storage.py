@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     status TEXT DEFAULT 'new',
     user_notes TEXT,
     tokens_scoring INTEGER DEFAULT 0,
-    tokens_tailoring INTEGER DEFAULT 0
+    tokens_tailoring INTEGER DEFAULT 0,
+    notion_page_id TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
@@ -76,6 +77,26 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS companies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    website TEXT,
+    careers_url TEXT,
+    sector TEXT,
+    location TEXT,
+    source TEXT,
+    relevance_score REAL,
+    has_open_ml_roles BOOLEAN DEFAULT FALSE,
+    last_checked_at TIMESTAMP,
+    spontaneous_status TEXT DEFAULT 'pending',
+    notion_page_id TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name);
+CREATE INDEX IF NOT EXISTS idx_companies_status ON companies(spontaneous_status);
+
 CREATE VIEW IF NOT EXISTS v_monthly_costs AS
 SELECT
     strftime('%Y-%m', created_at) AS month,
@@ -100,7 +121,17 @@ def get_connection() -> sqlite3.Connection:
 def init_db():
     conn = get_connection()
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.close()
+
+
+def _migrate(conn: sqlite3.Connection):
+    """Apply schema migrations for existing databases."""
+    # Check if notion_page_id column exists in jobs
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "notion_page_id" not in cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN notion_page_id TEXT")
+        conn.commit()
 
 
 def job_hash(title: str, company: str, source_url: str) -> str:
@@ -241,6 +272,79 @@ def get_monthly_cost(conn: sqlite3.Connection) -> float:
         (month,),
     ).fetchone()
     return row[0]
+
+
+def insert_company(conn: sqlite3.Connection, **kwargs) -> int | None:
+    """Insert a company if not already present (by name+website). Returns id or None."""
+    existing = conn.execute(
+        "SELECT id FROM companies WHERE name = ? AND website = ?",
+        (kwargs["name"], kwargs.get("website")),
+    ).fetchone()
+    if existing:
+        return None
+
+    conn.execute(
+        """INSERT INTO companies (name, website, careers_url, sector, location,
+           source, relevance_score, has_open_ml_roles)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            kwargs["name"],
+            kwargs.get("website"),
+            kwargs.get("careers_url"),
+            kwargs.get("sector"),
+            kwargs.get("location"),
+            kwargs.get("source", "manual"),
+            kwargs.get("relevance_score"),
+            kwargs.get("has_open_ml_roles", False),
+        ),
+    )
+    conn.commit()
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def get_companies(conn: sqlite3.Connection, status: str | None = None) -> list[dict]:
+    if status:
+        rows = conn.execute(
+            "SELECT * FROM companies WHERE spontaneous_status = ? ORDER BY relevance_score DESC",
+            (status,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM companies ORDER BY relevance_score DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_company_by_id(conn: sqlite3.Connection, company_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM companies WHERE id=?", (company_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_company_status(conn: sqlite3.Connection, company_id: int, status: str):
+    conn.execute(
+        "UPDATE companies SET spontaneous_status=? WHERE id=?", (status, company_id)
+    )
+    conn.commit()
+
+
+def update_company_notion_id(conn: sqlite3.Connection, company_id: int, notion_page_id: str):
+    conn.execute(
+        "UPDATE companies SET notion_page_id=? WHERE id=?", (notion_page_id, company_id)
+    )
+    conn.commit()
+
+
+def get_jobs_without_notion(conn: sqlite3.Connection, min_score: float) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM jobs WHERE match_score >= ? AND notion_page_id IS NULL ORDER BY match_score DESC",
+        (min_score,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_job_notion_id(conn: sqlite3.Connection, job_id: int, notion_page_id: str):
+    conn.execute("UPDATE jobs SET notion_page_id=? WHERE id=?", (notion_page_id, job_id))
+    conn.commit()
 
 
 def get_stats(conn: sqlite3.Connection) -> dict:

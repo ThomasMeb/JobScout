@@ -2,8 +2,7 @@
 __pycache__/
 *.pyc
 .venv/
-data/jobs.db
-data/applications/
+data/
 *.egg-info/
 dist/
 build/

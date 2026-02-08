@@ -5,7 +5,9 @@ from datetime import datetime
 from telegram import Bot
 
 from job_agent.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, load_config
+from job_agent.company_research import run_company_research
 from job_agent.matcher import score_new_jobs
+from job_agent.notion_sync import sync_companies_to_notion, sync_jobs_to_notion
 from job_agent.notifier import notify_new_jobs
 from job_agent.scrapers.adzuna import AdzunaScraper
 from job_agent.scrapers.apec import APECScraper
@@ -111,7 +113,15 @@ async def run_cycle():
         scored = await score_new_jobs(conn)
         logger.info(f"Scored {scored} jobs")
 
-    # 3. Notify via Telegram
+    # 3. Company research
+    try:
+        new_companies = await run_company_research(conn, cfg)
+        if new_companies:
+            logger.info(f"Company research: {new_companies} new companies")
+    except Exception as e:
+        logger.error(f"Company research failed: {e}")
+
+    # 4. Notify via Telegram
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         bot = Bot(token=TELEGRAM_BOT_TOKEN)
         max_notifs = cfg["telegram"]["max_notifications_per_run"]
@@ -123,6 +133,21 @@ async def run_cycle():
                 chat_id=int(TELEGRAM_CHAT_ID),
                 text="📭 Aucune nouvelle offre trouvée.",
             )
+
+    # 5. Sync to Notion
+    notion_cfg = cfg.get("notion", {})
+    if notion_cfg.get("enabled", False):
+        try:
+            min_score_sync = notion_cfg.get("min_score_sync", 50)
+            synced_jobs = sync_jobs_to_notion(conn, min_score_sync)
+            if synced_jobs:
+                logger.info(f"Notion: synced {synced_jobs} jobs")
+            if notion_cfg.get("sync_companies", False):
+                synced_companies = sync_companies_to_notion(conn)
+                if synced_companies:
+                    logger.info(f"Notion: synced {synced_companies} companies")
+        except Exception as e:
+            logger.error(f"Notion sync failed: {e}")
 
     conn.close()
     logger.info("Cycle complete")

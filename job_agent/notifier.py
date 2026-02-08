@@ -12,11 +12,14 @@ from telegram.ext import (
 
 from job_agent.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, load_config
 from job_agent.storage import (
+    get_companies,
+    get_company_by_id,
     get_connection,
     get_job_by_id,
     get_jobs_to_notify,
     get_monthly_cost,
     get_stats,
+    update_company_status,
     update_job_status,
 )
 
@@ -36,6 +39,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("pending", cmd_pending))
+    app.add_handler(CommandHandler("companies", cmd_companies))
     app.add_handler(CommandHandler("costs", cmd_costs))
     app.add_handler(CommandHandler("pause", cmd_pause))
     app.add_handler(CommandHandler("resume", cmd_resume))
@@ -51,6 +55,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commandes :\n"
         "/status — Stats globales\n"
         "/pending — Offres en attente\n"
+        "/companies — Entreprises cibles\n"
         "/costs — Coûts LLM du mois\n"
         "/pause — Mettre en pause\n"
         "/resume — Reprendre"
@@ -100,6 +105,33 @@ async def cmd_costs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Budget : ${budget:.2f}\n"
         f"Utilisation : {pct:.1f}%"
     )
+
+
+async def cmd_companies(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = get_connection()
+    companies = get_companies(conn, status="pending")
+    conn.close()
+
+    if not companies:
+        await update.message.reply_text("Aucune entreprise cible en attente.")
+        return
+
+    for company in companies[:10]:
+        score = company.get("relevance_score") or 0
+        text = (
+            f"🏢 {company['name']}\n"
+            f"📍 {company.get('location') or 'N/A'}\n"
+            f"🔧 {company.get('sector') or 'N/A'}\n"
+            f"⭐ Score: {score:.0f}\n"
+            f"🔗 {company.get('website') or 'N/A'}"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📝 Préparer candidature", callback_data=f"prepare_{company['id']}"),
+                InlineKeyboardButton("❌ Ignorer", callback_data=f"skipcompany_{company['id']}"),
+            ],
+        ])
+        await update.message.reply_text(text, reply_markup=keyboard)
 
 
 async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,7 +204,7 @@ async def _send_job_notification(chat_id: int, job: dict, bot: Bot):
     if reasoning:
         text += f"\n💡 {reasoning}\n"
 
-    keyboard = InlineKeyboardMarkup([
+    buttons = [
         [
             InlineKeyboardButton("🔍 Voir l'offre", url=job["source_url"]),
             InlineKeyboardButton("✅ Intéressé", callback_data=f"interested_{job['id']}"),
@@ -181,7 +213,12 @@ async def _send_job_notification(chat_id: int, job: dict, bot: Bot):
             InlineKeyboardButton("❌ Ignorer", callback_data=f"reject_{job['id']}"),
             InlineKeyboardButton("⏸ Plus tard", callback_data=f"later_{job['id']}"),
         ],
-    ])
+    ]
+    if score >= 70:
+        buttons.append([
+            InlineKeyboardButton("📝 Préparer candidature", callback_data=f"preparejob_{job['id']}"),
+        ])
+    keyboard = InlineKeyboardMarkup(buttons)
 
     await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
 
@@ -197,32 +234,72 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(parts) != 2:
         return
 
-    action, job_id_str = parts
+    action, id_str = parts
     try:
-        job_id = int(job_id_str)
+        item_id = int(id_str)
     except ValueError:
         return
 
     conn = get_connection()
-    job = get_job_by_id(conn, job_id)
+
+    # Company actions
+    if action == "prepare":
+        company = get_company_by_id(conn, item_id)
+        if not company:
+            await query.edit_message_text("Entreprise introuvable.")
+            conn.close()
+            return
+        update_company_status(conn, item_id, "prepared")
+        await query.edit_message_text(
+            f"📝 {company['name']} — candidature spontanée en préparation\n"
+            f"🔗 {company.get('website') or 'N/A'}\n\n"
+            f"Lancez `/resume-tailoring` dans Claude Code pour générer le CV sur mesure."
+        )
+        conn.close()
+        return
+
+    if action == "skipcompany":
+        company = get_company_by_id(conn, item_id)
+        if company:
+            update_company_status(conn, item_id, "rejected")
+            await query.edit_message_text(f"❌ {company['name']} — ignoré")
+        conn.close()
+        return
+
+    if action == "preparejob":
+        job = get_job_by_id(conn, item_id)
+        if not job:
+            await query.edit_message_text("Offre introuvable.")
+            conn.close()
+            return
+        update_job_status(conn, item_id, "interested")
+        await query.edit_message_text(
+            f"📝 {job['title']} @ {job['company']} — candidature en préparation\n"
+            f"🔗 {job['source_url']}\n\n"
+            f"Lancez `/resume-tailoring` dans Claude Code pour générer le CV sur mesure."
+        )
+        conn.close()
+        return
+
+    # Job actions
+    job = get_job_by_id(conn, item_id)
     if not job:
         await query.edit_message_text("Offre introuvable.")
         conn.close()
         return
 
     if action == "interested":
-        update_job_status(conn, job_id, "interested")
+        update_job_status(conn, item_id, "interested")
         await query.edit_message_text(
             f"✅ {job['title']} @ {job['company']} — marqué comme intéressant\n"
             f"🔗 {job['source_url']}"
         )
     elif action == "reject":
-        update_job_status(conn, job_id, "rejected")
+        update_job_status(conn, item_id, "rejected")
         await query.edit_message_text(
             f"❌ {job['title']} @ {job['company']} — ignoré"
         )
     elif action == "later":
-        # Keep status as notified
         await query.edit_message_text(
             f"⏸ {job['title']} @ {job['company']} — remis à plus tard\n"
             f"Utilisez /pending pour revoir les offres."

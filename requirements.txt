@@ -18,5 +18,8 @@ python-telegram-bot>=21.0
 # Scheduling
 apscheduler>=3.10.0
 
+# Notion
+notion-client>=2.2.0
+
 # Utils
 rich>=13.7.0
