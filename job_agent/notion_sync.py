@@ -3,32 +3,134 @@ import logging
 import os
 import sqlite3
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
+NOTION_API = "https://api.notion.com/v1"
+NOTION_VERSION = "2022-06-28"
 
-def _get_notion_client():
+
+def _headers() -> dict:
     token = os.environ.get("NOTION_TOKEN", "")
-    if not token:
-        return None
-    try:
-        from notion_client import Client
-        return Client(auth=token)
-    except ImportError:
-        logger.warning("notion-sdk not installed, skipping Notion sync")
-        return None
+    return {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+    }
 
 
 def get_database_id() -> str:
     return os.environ.get("NOTION_DATABASE_ID", "")
 
 
+def _notion_request(method: str, path: str, body: dict | None = None) -> dict | None:
+    """Make a Notion API request. Returns response dict or None on failure."""
+    token = os.environ.get("NOTION_TOKEN", "")
+    if not token:
+        return None
+
+    url = f"{NOTION_API}/{path}"
+    try:
+        with httpx.Client(timeout=30) as client:
+            if method == "GET":
+                resp = client.get(url, headers=_headers())
+            elif method == "POST":
+                resp = client.post(url, headers=_headers(), json=body or {})
+            elif method == "PATCH":
+                resp = client.patch(url, headers=_headers(), json=body or {})
+            else:
+                return None
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as e:
+        logger.error(f"Notion API error ({method} {path}): {e}")
+        return None
+
+
+def setup_databases():
+    """Create all required properties in the Jobs and Companies Notion databases."""
+    jobs_db = get_database_id()
+    companies_db = os.environ.get("NOTION_COMPANIES_DB_ID", "")
+
+    success = True
+    if jobs_db:
+        result = _notion_request("PATCH", f"databases/{jobs_db}", {
+            "properties": {
+                "Nom": {"name": "Titre"},
+                "Entreprise": {"rich_text": {}},
+                "Score": {"number": {"format": "number"}},
+                "Statut": {"select": {"options": [
+                    {"name": "Nouveau", "color": "blue"},
+                    {"name": "Notifié", "color": "yellow"},
+                    {"name": "Intéressé", "color": "green"},
+                    {"name": "Rejeté", "color": "red"},
+                    {"name": "Postulé", "color": "purple"},
+                ]}},
+                "Source": {"select": {"options": [
+                    {"name": "wttj", "color": "yellow"},
+                    {"name": "adzuna", "color": "blue"},
+                    {"name": "francetravail", "color": "red"},
+                    {"name": "remoteok", "color": "green"},
+                    {"name": "jobspy_indeed", "color": "orange"},
+                ]}},
+                "Localisation": {"rich_text": {}},
+                "Lien offre": {"url": {}},
+                "Remote": {"select": {"options": [
+                    {"name": "full", "color": "green"},
+                    {"name": "hybrid", "color": "yellow"},
+                    {"name": "onsite", "color": "red"},
+                ]}},
+                "Keywords": {"rich_text": {}},
+                "Reasoning": {"rich_text": {}},
+                "Priorité": {"select": {"options": [
+                    {"name": "high", "color": "red"},
+                    {"name": "medium", "color": "yellow"},
+                    {"name": "low", "color": "gray"},
+                ]}},
+                "Salaire": {"rich_text": {}},
+                "Date scrape": {"date": {}},
+            },
+        })
+        if result:
+            logger.info("Jobs database properties created")
+        else:
+            success = False
+
+    if companies_db:
+        result = _notion_request("PATCH", f"databases/{companies_db}", {
+            "properties": {
+                "Nom": {"title": {}},
+                "Statut": {"select": {"options": [
+                    {"name": "En attente", "color": "blue"},
+                    {"name": "Préparé", "color": "yellow"},
+                    {"name": "Envoyé", "color": "green"},
+                    {"name": "Rejeté", "color": "red"},
+                ]}},
+                "Source": {"select": {"options": [
+                    {"name": "manual", "color": "blue"},
+                    {"name": "labonneboite", "color": "green"},
+                ]}},
+                "Site": {"url": {}},
+                "Localisation": {"rich_text": {}},
+                "Secteur": {"rich_text": {}},
+                "Score": {"number": {"format": "number"}},
+            },
+        })
+        if result:
+            logger.info("Companies database properties created")
+        else:
+            success = False
+
+    return success
+
+
 def sync_jobs_to_notion(conn: sqlite3.Connection, min_score: float) -> int:
     """Push high-scoring jobs without a Notion page ID to Notion. Returns count synced."""
     from job_agent.storage import get_jobs_without_notion, update_job_notion_id
 
-    notion = _get_notion_client()
     db_id = get_database_id()
-    if not notion or not db_id:
+    if not db_id or not os.environ.get("NOTION_TOKEN"):
         return 0
 
     jobs = get_jobs_without_notion(conn, min_score)
@@ -37,16 +139,15 @@ def sync_jobs_to_notion(conn: sqlite3.Connection, min_score: float) -> int:
 
     synced = 0
     for job in jobs:
-        try:
-            page = notion.pages.create(
-                parent={"database_id": db_id},
-                properties=_job_to_notion_properties(job),
-            )
-            update_job_notion_id(conn, job["id"], page["id"])
+        result = _notion_request("POST", "pages", {
+            "parent": {"database_id": db_id},
+            "properties": _job_to_notion_properties(job),
+        })
+        if result and result.get("id"):
+            update_job_notion_id(conn, job["id"], result["id"])
             synced += 1
-        except Exception as e:
-            logger.error(f"Notion sync failed for job {job['id']}: {e}")
-            continue
+        else:
+            logger.error(f"Notion sync failed for job {job['id']}")
 
     if synced:
         logger.info(f"Notion: synced {synced} jobs")
@@ -57,9 +158,8 @@ def sync_companies_to_notion(conn: sqlite3.Connection) -> int:
     """Push companies without a Notion page ID to Notion. Returns count synced."""
     from job_agent.storage import update_company_notion_id
 
-    notion = _get_notion_client()
     db_id = os.environ.get("NOTION_COMPANIES_DB_ID", "")
-    if not notion or not db_id:
+    if not db_id or not os.environ.get("NOTION_TOKEN"):
         return 0
 
     rows = conn.execute(
@@ -69,16 +169,15 @@ def sync_companies_to_notion(conn: sqlite3.Connection) -> int:
 
     synced = 0
     for company in companies:
-        try:
-            page = notion.pages.create(
-                parent={"database_id": db_id},
-                properties=_company_to_notion_properties(company),
-            )
-            update_company_notion_id(conn, company["id"], page["id"])
+        result = _notion_request("POST", "pages", {
+            "parent": {"database_id": db_id},
+            "properties": _company_to_notion_properties(company),
+        })
+        if result and result.get("id"):
+            update_company_notion_id(conn, company["id"], result["id"])
             synced += 1
-        except Exception as e:
-            logger.error(f"Notion sync failed for company {company['id']}: {e}")
-            continue
+        else:
+            logger.error(f"Notion sync failed for company {company['id']}")
 
     if synced:
         logger.info(f"Notion: synced {synced} companies")
@@ -87,19 +186,14 @@ def sync_companies_to_notion(conn: sqlite3.Connection) -> int:
 
 def update_notion_job_status(job: dict):
     """Update a job's status in Notion when it changes locally."""
-    notion = _get_notion_client()
-    if not notion or not job.get("notion_page_id"):
+    if not job.get("notion_page_id") or not os.environ.get("NOTION_TOKEN"):
         return
 
-    try:
-        notion.pages.update(
-            page_id=job["notion_page_id"],
-            properties={
-                "Statut": {"select": {"name": _map_status(job["status"])}},
-            },
-        )
-    except Exception as e:
-        logger.error(f"Notion status update failed: {e}")
+    _notion_request("PATCH", f"pages/{job['notion_page_id']}", {
+        "properties": {
+            "Statut": {"select": {"name": _map_status(job["status"])}},
+        },
+    })
 
 
 def _job_to_notion_properties(job: dict) -> dict:
@@ -145,7 +239,7 @@ def _job_to_notion_properties(job: dict) -> dict:
 def _company_to_notion_properties(company: dict) -> dict:
     props = {
         "Nom": {"title": [{"text": {"content": company["name"][:100]}}]},
-        "Statut": {"select": {"name": company.get("spontaneous_status", "pending")}},
+        "Statut": {"select": {"name": _map_status(company.get("spontaneous_status", "pending"))}},
         "Source": {"select": {"name": company.get("source", "manual")}},
     }
 
