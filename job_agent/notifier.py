@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import sqlite3
@@ -167,8 +168,11 @@ async def notify_new_jobs(bot: Bot, conn: sqlite3.Connection, max_notifications:
             await _send_job_notification(int(TELEGRAM_CHAT_ID), job, bot)
             update_job_status(conn, job["id"], "notified")
             sent += 1
+            await asyncio.sleep(1.5)
         except Exception as e:
             logger.error(f"Failed to notify job {job['id']}: {e}")
+            if "Flood control" in str(e) or "Timed out" in str(e):
+                await asyncio.sleep(30)
 
     return sent
 
