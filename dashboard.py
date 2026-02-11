@@ -16,10 +16,15 @@ def get_conn():
 def load_jobs():
     conn = get_conn()
     df = pd.read_sql_query(
-        "SELECT * FROM jobs WHERE match_score IS NOT NULL ORDER BY match_score DESC",
+        """SELECT *, ROW_NUMBER() OVER (PARTITION BY title, company ORDER BY id) as dup_rank
+        FROM jobs WHERE match_score IS NOT NULL ORDER BY match_score DESC""",
         conn,
     )
     conn.close()
+    # Deduplicate: keep only first occurrence of each title+company
+    df = df[df["dup_rank"] == 1].drop(columns=["dup_rank"])
+    # Clean "Unknown" companies
+    df["company"] = df["company"].replace({"Unknown": "Non précisé", "Non précisé": "Non précisé"})
     return df
 
 
@@ -69,6 +74,21 @@ def anonymize(df, columns):
     return df
 
 
+def format_salary(row):
+    """Format salary range from salary_min/salary_max columns."""
+    smin = row.get("salary_min")
+    smax = row.get("salary_max")
+    currency = row.get("salary_currency", "EUR")
+    sym = "€" if currency in ("EUR", None, "") else "$" if currency == "USD" else currency
+    if pd.notna(smin) and smin >= 1000 and pd.notna(smax) and smax >= 1000:
+        return f"{int(smin/1000)}k-{int(smax/1000)}k {sym}"
+    if pd.notna(smin) and smin >= 1000:
+        return f"{int(smin/1000)}k+ {sym}"
+    if pd.notna(smax) and smax >= 1000:
+        return f"<{int(smax/1000)}k {sym}"
+    return ""
+
+
 # --- Page config ---
 st.set_page_config(
     page_title="Job Agent Dashboard",
@@ -78,7 +98,7 @@ st.set_page_config(
 
 # --- Sidebar ---
 st.sidebar.title("🤖 Job Agent")
-demo_mode = st.sidebar.toggle("Mode démo", value=False, help="Anonymise les données")
+demo_mode = st.sidebar.toggle("Mode démo", value=False, help="Anonymise les données sensibles")
 st.sidebar.divider()
 
 jobs_df = load_jobs()
@@ -89,6 +109,9 @@ sources = ["Toutes"] + sorted(jobs_df["source"].unique().tolist())
 selected_source = st.sidebar.selectbox("Source", sources)
 
 min_score = st.sidebar.slider("Score minimum", 0, 100, 50, 5)
+
+statuses = ["Tous"] + sorted(jobs_df["status"].dropna().unique().tolist())
+selected_status = st.sidebar.selectbox("Statut", statuses)
 
 locations = ["Toutes"] + sorted(
     [loc for loc in jobs_df["location"].dropna().unique().tolist() if loc]
@@ -103,11 +126,14 @@ if st.sidebar.button("Rafraîchir"):
 filtered = jobs_df[jobs_df["match_score"] >= min_score]
 if selected_source != "Toutes":
     filtered = filtered[filtered["source"] == selected_source]
+if selected_status != "Tous":
+    filtered = filtered[filtered["status"] == selected_status]
 if selected_location != "Toutes":
     filtered = filtered[filtered["location"] == selected_location]
 
 if demo_mode:
     filtered = anonymize(filtered, ["company"])
+    filtered["source_url"] = ""
     companies_display = anonymize(companies_df, ["name"])
 else:
     companies_display = companies_df
@@ -131,46 +157,78 @@ st.subheader("Distribution des scores")
 fig_hist = px.histogram(
     filtered,
     x="match_score",
-    nbins=20,
+    nbins=10,
     color_discrete_sequence=["#4A90D9"],
     labels={"match_score": "Score", "count": "Nombre"},
+    text_auto=True,
 )
 fig_hist.update_layout(
     showlegend=False,
     margin=dict(l=0, r=0, t=10, b=0),
     height=300,
+    bargap=0.1,
     yaxis_title="Nombre d'offres",
     xaxis_title="Score de matching",
 )
-st.plotly_chart(fig_hist, use_container_width=True)
+fig_hist.update_xaxes(dtick=10)
+st.plotly_chart(fig_hist, width="stretch")
 
 # --- Top jobs ---
 st.subheader(f"Top offres ({len(filtered)} résultats)")
 
-display_cols = ["title", "company", "match_score", "source", "location", "remote_type", "match_priority"]
+# Build salary column
+filtered = filtered.copy()
+filtered["salary"] = filtered.apply(format_salary, axis=1)
+
+display_cols = ["title", "company", "match_score", "salary", "source", "location", "remote_type", "match_priority", "source_url"]
 display_names = {
     "title": "Titre",
     "company": "Entreprise",
     "match_score": "Score",
+    "salary": "Salaire",
     "source": "Source",
     "location": "Localisation",
     "remote_type": "Remote",
     "match_priority": "Priorité",
+    "source_url": "Lien",
 }
 
 available_cols = [c for c in display_cols if c in filtered.columns]
 jobs_table = filtered[available_cols].rename(columns=display_names)
 
+col_config = {
+    "Score": st.column_config.NumberColumn(format="%.0f /100"),
+    "Lien": st.column_config.LinkColumn("Lien", display_text="Voir"),
+}
+
 st.dataframe(
     jobs_table,
-    use_container_width=True,
+    width="stretch",
     height=400,
-    column_config={
-        "Score": st.column_config.ProgressColumn(
-            min_value=0, max_value=100, format="%.0f"
-        ),
-    },
+    hide_index=True,
+    column_config=col_config,
 )
+
+# --- Job detail expander ---
+if not filtered.empty:
+    with st.expander("Détail du scoring (cliquer pour déplier)"):
+        detail_options = filtered[["title", "company", "match_score"]].copy()
+        detail_options["label"] = detail_options.apply(
+            lambda r: f"[{int(r['match_score'])}] {r['title']} — {r['company']}", axis=1
+        )
+        selected_job_label = st.selectbox("Choisir une offre", detail_options["label"].tolist()[:50])
+        if selected_job_label:
+            idx = detail_options[detail_options["label"] == selected_job_label].index[0]
+            job = filtered.loc[idx]
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Reasoning**")
+                st.write(job.get("match_reasoning", "N/A"))
+            with c2:
+                st.markdown("**Keywords matchés**")
+                st.write(job.get("match_keywords", "N/A"))
+                st.markdown("**Keywords manquants**")
+                st.write(job.get("missing_keywords", "N/A"))
 
 # --- Two columns: companies + sources ---
 col_left, col_right = st.columns(2)
@@ -188,7 +246,7 @@ with col_left:
     available = [c for c in company_cols if c in companies_display.columns]
     st.dataframe(
         companies_display[available].rename(columns=company_names),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -209,25 +267,36 @@ with col_right:
             height=300,
             legend=dict(orientation="h", y=1.1),
         )
-        st.plotly_chart(fig_sources, use_container_width=True)
+        st.plotly_chart(fig_sources, width="stretch")
 
 # --- LLM costs ---
 if not llm_costs.empty:
     st.subheader("Coûts LLM")
+    llm_costs = llm_costs.copy()
     llm_costs["cumulative"] = llm_costs["cost"].cumsum()
-    fig_cost = px.area(
+    fig_cost = px.bar(
         llm_costs,
         x="date",
-        y="cumulative",
-        labels={"cumulative": "Coût cumulé ($)", "date": "Date"},
+        y="cost",
+        labels={"cost": "Coût du jour ($)", "date": "Date", "cumulative": "Cumulé ($)"},
         color_discrete_sequence=["#FF6B6B"],
+        text_auto="$.2f",
+    )
+    fig_cost.add_scatter(
+        x=llm_costs["date"],
+        y=llm_costs["cumulative"],
+        mode="lines+markers",
+        name="Cumulé",
+        line=dict(color="#4A90D9", width=2),
     )
     fig_cost.update_layout(
         margin=dict(l=0, r=0, t=10, b=0),
         height=250,
+        legend=dict(orientation="h", y=1.1),
+        xaxis=dict(type="category"),
     )
-    st.plotly_chart(fig_cost, use_container_width=True)
+    st.plotly_chart(fig_cost, width="stretch")
 
 # --- Footer ---
 st.divider()
-st.caption("Job Agent — AI-Powered Job Search Automation")
+st.caption("[Job Agent](https://github.com/ThomasMeb/job-agent) — AI-Powered Job Search Automation")
