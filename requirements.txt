@@ -21,5 +21,9 @@ apscheduler>=3.10.0
 # Notion
 notion-client>=2.2.0
 
+# Dashboard
+streamlit>=1.35.0
+plotly>=5.20.0
+
 # Utils
 rich>=13.7.0
