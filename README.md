@@ -1,48 +1,94 @@
-# 🔍 JobScout — AI-Powered Job Search Automation
+# 🔍 JobScout
 
-> Autonomous agent that scrapes, scores, and tracks job opportunities using LLM-based profile matching.
+**AI-powered job search automation — scrape, score, and track opportunities while you sleep.**
 
-**Scrape 5+ sources → Score with AI → Get notified on Telegram → Track in Notion**
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/ThomasMeb/JobScout)](https://github.com/ThomasMeb/JobScout/stargazers)
+
+> JobScout is an autonomous agent that continuously scrapes job boards, scores each opportunity against your profile using an LLM, and notifies you on Telegram — so you only see the jobs that actually match.
+
+```
+5 sources → 2,000+ jobs → LLM scoring → Telegram alerts → Notion tracking
+```
+
+---
+
+## Why JobScout?
+
+| Without JobScout | With JobScout |
+|------------------|---------------|
+| Manually check 5+ job boards daily | Agent scrapes every 6h automatically |
+| Skim hundreds of irrelevant listings | LLM scores each job 0-100 against YOUR profile |
+| Miss good opportunities | Telegram alert within minutes |
+| Lose track of applications | Notion CRM auto-populated |
+| Spend hours, find little | **2,000 jobs scored for ~$1.50** |
 
 ---
 
 ## Features
 
 - **Multi-source scraping** — Welcome to the Jungle, Adzuna, France Travail, RemoteOK, JobSpy (Indeed/LinkedIn/Glassdoor)
-- **AI-powered scoring** — DeepSeek LLM scores each job 0-100 against your profile with detailed reasoning
-- **Telegram notifications** — Real-time alerts with action buttons (Interested / Reject / Prepare application)
-- **Notion sync** — Automatically pushes scored jobs and target companies to your Notion workspace
-- **Company research** — La Bonne Boite API + manual target list for spontaneous applications
-- **Application briefs** — Auto-generated preparation dossiers for high-scoring opportunities
-- **Dashboard** — Streamlit visualization of your job search data
-- **Budget control** — Monthly LLM cost tracking with configurable limits
+- **LLM scoring** — Each job scored 0-100 with reasoning, matched keywords, and missing skills
+- **Telegram bot** — Real-time notifications with action buttons (Interested / Reject / Prepare CV)
+- **Notion sync** — Jobs and target companies pushed to your workspace automatically
+- **Company targeting** — Manual watchlist + La Bonne Boite API for spontaneous applications
+- **Application briefs** — Auto-generated preparation dossiers for top opportunities
+- **Streamlit dashboard** — Visual analytics with filters, score distribution, cost tracking
+- **Budget control** — Monthly LLM spending cap with automatic enforcement
+- **Deduplication** — SHA256 hashing across sources, no duplicate alerts
+
+---
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│  5 Scrapers  │────▶│  SQLite DB   │────▶│   Telegram   │
-│  (async)     │     │  (WAL mode)  │     │  Bot + Notif │
-└─────────────┘     └──────┬───────┘     └──────────────┘
-                           │
-                    ┌──────▼───────┐     ┌──────────────┐
-                    │  DeepSeek    │     │    Notion     │
-                    │  LLM Scoring │     │    Sync       │
-                    └──────────────┘     └──────────────┘
-                                         ┌──────────────┐
-                                         │  Streamlit   │
-                                         │  Dashboard   │
-                                         └──────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        JobScout Pipeline                      │
+│                      (every 6h, 7am–11pm)                     │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│   ┌─────────┐  ┌─────────┐  ┌───────────┐  ┌──────────┐     │
+│   │  WTTJ   │  │ Adzuna  │  │ France    │  │ RemoteOK │     │
+│   │ Algolia │  │  API    │  │ Travail   │  │          │     │
+│   └────┬────┘  └────┬────┘  └─────┬─────┘  └────┬─────┘     │
+│        │            │             │              │            │
+│        └────────────┴──────┬──────┴──────────────┘            │
+│                            ▼                                  │
+│                    ┌───────────────┐      ┌────────────────┐  │
+│   ┌─────────┐     │   SQLite DB   │      │   Streamlit    │  │
+│   │ JobSpy  │────▶│   (WAL mode)  │◀────▶│   Dashboard    │  │
+│   │ Indeed  │     │  dedup + CRUD │      │   analytics    │  │
+│   │LinkedIn │     └───────┬───────┘      └────────────────┘  │
+│   └─────────┘             │                                   │
+│                           ▼                                   │
+│                  ┌─────────────────┐                          │
+│                  │  DeepSeek LLM   │                          │
+│                  │  score 0-100    │                          │
+│                  │  + reasoning    │                          │
+│                  └────────┬────────┘                          │
+│                           │                                   │
+│                    ┌──────┴──────┐                            │
+│                    ▼             ▼                             │
+│            ┌─────────────┐  ┌──────────┐                     │
+│            │  Telegram   │  │  Notion  │                     │
+│            │  Bot alerts │  │  CRM     │                     │
+│            │  + actions  │  │  sync    │                     │
+│            └─────────────┘  └──────────┘                     │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Pipeline (every 6h, 7am-11pm)
+### Pipeline steps
 
-1. **Scrape** — Fetch jobs from all enabled sources
+1. **Scrape** — Fetch jobs from all enabled sources (async)
 2. **Deduplicate** — SHA256 hash on title + company + URL
-3. **Score** — LLM evaluates job-profile fit (0-100) with reasoning, keywords, priority
+3. **Score** — LLM evaluates job-profile fit (0-100) with detailed reasoning
 4. **Notify** — Telegram messages with inline action buttons for jobs above threshold
-5. **Company research** — Find companies via La Bonne Boite + manual targets
-6. **Notion sync** — Push scored jobs and companies to Notion databases
+5. **Research** — Company intelligence via La Bonne Boite + manual targets
+6. **Sync** — Push scored jobs and companies to Notion databases
+
+---
 
 ## Quick Start
 
@@ -54,9 +100,11 @@ cd JobScout
 pip install -r requirements.txt
 ```
 
+> Requires Python 3.12+
+
 ### 2. Configure your profile
 
-Edit `config.yaml` to match your job search:
+Edit `config.yaml` — this is the only file you need to customize:
 
 ```yaml
 profile:
@@ -79,31 +127,38 @@ search:
   min_salary: 45000
 
 scoring:
-  min_score_notify: 60        # Telegram notification threshold
+  min_score_notify: 60
   bonus_keywords: [python, pytorch, mlops, docker]
   penalty_keywords: [10+ years, PhD required, Java]
 ```
 
-### 3. Create API keys
-
-Copy the template and fill in your keys:
+### 3. Set up API keys
 
 ```bash
 cp .env.example .env
+# Edit .env with your keys
 ```
 
 | Service | Where to get it | Required |
 |---------|----------------|----------|
 | **DeepSeek** | [platform.deepseek.com](https://platform.deepseek.com) | Yes |
-| **Telegram Bot** | Talk to [@BotFather](https://t.me/BotFather) on Telegram | Yes |
+| **Telegram Bot** | [@BotFather](https://t.me/BotFather) on Telegram | Yes |
 | **Adzuna** | [developer.adzuna.com](https://developer.adzuna.com) | Recommended |
 | **France Travail** | [francetravail.io](https://francetravail.io) | Optional |
 | **Notion** | [notion.so/my-integrations](https://www.notion.so/my-integrations) | Optional |
 
-**Telegram Chat ID**: Send `/start` to your bot, then run:
+<details>
+<summary>How to get your Telegram Chat ID</summary>
+
+1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the token
+2. Send `/start` to your new bot
+3. Run:
 ```bash
 curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
 ```
+4. Copy the `chat.id` value from the response
+
+</details>
 
 ### 4. Run
 
@@ -118,7 +173,9 @@ python main.py
 streamlit run dashboard.py
 ```
 
-## Configuration Reference
+---
+
+## Configuration
 
 ### Sources
 
@@ -127,22 +184,22 @@ Enable/disable scrapers in `config.yaml`:
 ```yaml
 sources:
   wttj:
-    enabled: true          # Welcome to the Jungle
+    enabled: true          # Welcome to the Jungle (Algolia API)
   adzuna:
-    enabled: true          # Adzuna API (needs API key)
+    enabled: true          # Adzuna API (needs key)
   francetravail:
-    enabled: true          # France Travail API
+    enabled: true          # France Travail API (OAuth2)
   remoteok:
     enabled: true          # RemoteOK (no key needed)
   jobspy:
-    enabled: true          # Indeed + LinkedIn + Glassdoor
+    enabled: true          # Indeed + LinkedIn via JobSpy
   hellowork:
-    enabled: false         # Requires Playwright (SPA)
+    enabled: false         # Requires Playwright
 ```
 
-### Target Companies
+### Target companies
 
-Add companies for spontaneous applications:
+Add companies for spontaneous application tracking:
 
 ```yaml
 target_companies:
@@ -154,7 +211,7 @@ target_companies:
     relevance_score: 95
 ```
 
-### Notion Integration
+### Notion integration
 
 1. Create an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
 2. Create two databases: **Jobs** and **Companies**
@@ -163,7 +220,7 @@ target_companies:
 
 The agent auto-creates all required properties on first sync.
 
-### Telegram Commands
+### Telegram commands
 
 | Command | Description |
 |---------|-------------|
@@ -172,45 +229,48 @@ The agent auto-creates all required properties on first sync.
 | `/pending` | Jobs waiting for review |
 | `/companies` | Target companies list |
 | `/costs` | LLM spending this month |
-| `/pause` | Pause the scheduler |
-| `/resume` | Resume the scheduler |
+| `/pause` / `/resume` | Pause/resume the scheduler |
 
-### Daemon (systemd)
+### Run as a service (systemd)
 
 ```bash
-# Create service
 mkdir -p ~/.config/systemd/user
 cp jobscout.service ~/.config/systemd/user/
 
-# Enable and start
 systemctl --user daemon-reload
 systemctl --user enable --now jobscout
 
-# Logs
+# Check logs
 journalctl --user -u jobscout -f
 ```
 
+---
+
 ## Costs
 
-DeepSeek pricing makes this very affordable:
+DeepSeek makes this extremely affordable:
 
-| Items | Cost | Time |
-|-------|------|------|
-| 1,300 jobs scored | ~$1.00 | ~2 hours |
-| Monthly (4 cycles/day) | ~$3-5 | Automatic |
+| Volume | Cost | Notes |
+|--------|------|-------|
+| ~1,300 jobs scored | ~$1.00 | First full run |
+| ~2,000 jobs scored | ~$1.50 | With dedup, mostly new jobs |
+| Monthly estimate | ~$3–5 | 4 cycles/day, budget enforced |
 
-Budget is configurable and enforced — the agent stops scoring when the monthly limit is reached.
+Budget is configurable in `config.yaml` — the agent stops scoring automatically when the monthly limit is reached.
+
+---
 
 ## Project Structure
 
 ```
 JobScout/
-├── main.py                    # CLI entry point (--once / daemon)
+├── main.py                    # Entry point (--once / daemon)
 ├── dashboard.py               # Streamlit dashboard
 ├── config.yaml                # All configuration
 ├── .env.example               # API keys template
+├── jobscout.service           # systemd unit file
 │
-├── job_agent/
+├── job_agent/                 # Core library
 │   ├── config.py              # Config loader
 │   ├── storage.py             # SQLite schema + CRUD
 │   ├── llm.py                 # DeepSeek async client
@@ -220,16 +280,29 @@ JobScout/
 │   ├── company_research.py    # La Bonne Boite + targets
 │   ├── application_prep.py    # Brief generator
 │   ├── notion_sync.py         # Notion API sync
-│   └── scrapers/              # 10 scrapers (5 active)
+│   └── scrapers/
 │       ├── base.py            # BaseScraper ABC
 │       ├── wttj.py            # Welcome to the Jungle
 │       ├── adzuna.py          # Adzuna API
 │       ├── francetravail.py   # France Travail API
 │       ├── remoteok.py        # RemoteOK
-│       └── jobspy.py          # JobSpy (multi-source)
+│       └── jobspy.py          # JobSpy (Indeed + LinkedIn)
 │
-└── data/                      # SQLite DB + generated briefs (gitignored)
+└── data/                      # SQLite DB + briefs (gitignored)
 ```
+
+---
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues or PRs.
+
+The architecture is designed to be extensible:
+- **Add a scraper**: subclass `BaseScraper` in `job_agent/scrapers/`
+- **Change LLM**: swap the `base_url` and `model` in `config.yaml` (any OpenAI-compatible API)
+- **Add a notification channel**: extend `notifier.py`
+
+---
 
 ## License
 
