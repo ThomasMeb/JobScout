@@ -14,6 +14,10 @@
 
 ---
 
+## Dashboard
+
+![JobScout Dashboard](assets/dashboard-preview.png)
+
 ## Why JobScout?
 
 | Without JobScout | With JobScout |
@@ -104,7 +108,11 @@ pip install -r requirements.txt
 
 ### 2. Configure your profile
 
-Edit `config.yaml` — this is the only file you need to customize:
+Copy and edit the config file — this is the only file you need to customize:
+
+```bash
+cp config.example.yaml config.yaml
+```
 
 ```yaml
 profile:
@@ -266,7 +274,7 @@ Budget is configurable in `config.yaml` — the agent stops scoring automaticall
 JobScout/
 ├── main.py                    # Entry point (--once / daemon)
 ├── dashboard.py               # Streamlit dashboard
-├── config.yaml                # All configuration
+├── config.example.yaml        # Configuration template
 ├── .env.example               # API keys template
 ├── jobscout.service           # systemd unit file
 │

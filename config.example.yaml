@@ -1,0 +1,168 @@
+# =============================================================================
+# JobScout Configuration
+# =============================================================================
+# Copy this file to config.yaml and customize it to your profile.
+#
+#   cp config.example.yaml config.yaml
+#
+# =============================================================================
+
+profile:
+  name: "Your Name"
+  # Optional: paths to your CV files (used for application prep)
+  # cv_fr: "path/to/cv_fr.md"
+  # cv_en: "path/to/cv_en.md"
+  # profile_doc: "path/to/profile.md"
+  profile_doc: |
+    3 years experience in Python, Machine Learning, Deep Learning, NLP.
+    Looking for: ML Engineer, Data Scientist positions.
+    Location: Paris, open to remote.
+    Key skills: Python, PyTorch, TensorFlow, Docker, FastAPI, SQL.
+
+search:
+  queries:
+    - "ML Engineer"
+    - "Machine Learning Engineer"
+    - "Data Scientist"
+    - "MLOps Engineer"
+    - "NLP Engineer"
+    - "AI Engineer"
+  locations:
+    - "Paris"
+    - "Lyon"
+    - "France"
+  remote_accepted: true
+  remote_only: false
+  contract_types:
+    - "CDI"
+    - "full-time"
+  min_salary: 45000
+  max_experience_years: 5
+
+scoring:
+  min_score_notify: 60          # Telegram notification threshold
+  min_score_auto_prepare: 90    # Auto-generate application brief
+  bonus_keywords:
+    - "python"
+    - "machine learning"
+    - "deep learning"
+    - "nlp"
+    - "computer vision"
+    - "pytorch"
+    - "tensorflow"
+    - "mlops"
+    - "docker"
+    - "fastapi"
+    - "llm"
+    - "transformers"
+  penalty_keywords:
+    - "10+ years"
+    - "staff engineer"
+    - "principal"
+    - "director"
+    - "VP"
+    - "PhD required"
+    - "Java"
+    - "C++"
+    - ".NET"
+
+sources:
+  wttj:
+    enabled: true
+    max_results_per_query: 50
+    delay_between_requests: 5
+  remoteok:
+    enabled: true
+    filter_tags:
+      - "python"
+      - "machine-learning"
+      - "data-science"
+      - "ai"
+      - "data"
+  adzuna:
+    enabled: true               # Needs ADZUNA_APP_ID + ADZUNA_APP_KEY in .env
+    country: "fr"
+    distance_km: 100
+  indeed_rss:
+    enabled: false              # Indeed disabled RSS feeds (2026)
+    country: "fr"
+  francetravail:
+    enabled: true               # Needs FRANCE_TRAVAIL_CLIENT_ID + SECRET in .env
+    contract_types: "CDI"
+  jobspy:
+    enabled: true
+    sites:
+      - "indeed"
+      - "linkedin"
+      # - "glassdoor"           # May be blocked depending on your setup
+    results_per_query: 25
+    country: "France"
+  hellowork:
+    enabled: false              # SPA - requires Playwright
+    max_pages: 3
+    delay_between_requests: 3
+  apec:
+    enabled: false              # SPA - requires Playwright
+    max_results: 50
+    delay_between_requests: 3
+  freework:
+    enabled: false              # SPA - requires Playwright
+    max_pages: 2
+    delay_between_requests: 3
+    contract_type: ""           # "", "freelance", "cdi"
+  welovedevs:
+    enabled: false              # SPA - requires Playwright
+    delay_between_requests: 3
+
+scheduler:
+  scrape_interval_hours: 6
+  active_hours: [7, 23]        # Only run between 7am and 11pm
+  timezone: "Europe/Paris"
+
+telegram:
+  send_daily_summary: true
+  summary_hour: 20
+  max_notifications_per_run: 50
+  silent_if_no_new: true
+
+target_companies:
+  # Add companies you'd like to track for spontaneous applications
+  - name: "Company A"
+    website: "https://example.com"
+    careers_url: "https://example.com/careers"
+    sector: "AI / Tech"
+    location: "Paris"
+    relevance_score: 90
+  - name: "Company B"
+    website: "https://example2.com"
+    careers_url: "https://example2.com/jobs"
+    sector: "Cloud / Data"
+    location: "Lyon"
+    relevance_score: 85
+
+labonneboite:
+  enabled: false                # Needs api_labonneboitev1 scope on francetravail.io
+  rome_codes:
+    - "M1805"                   # Software development
+    - "M1810"                   # IT systems
+  locations:
+    - commune_id: "75056"
+      latitude: 48.8566
+      longitude: 2.3522
+      distance: 15
+      label: "Paris"
+
+notion:
+  enabled: false                # Set to true after configuring .env
+  min_score_sync: 50
+  sync_companies: true
+
+llm:
+  model: "deepseek-chat"
+  base_url: "https://api.deepseek.com"
+  max_tokens_scoring: 512
+  max_tokens_tailoring: 4096
+  max_tokens_cover_letter: 2048
+  temperature_scoring: 0.2
+  temperature_tailoring: 0.4
+  monthly_budget_usd: 5.0
