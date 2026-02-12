@@ -1,10 +1,10 @@
 [Unit]
-Description=Job Search Agent - scrape, score, notify
+Description=JobScout - AI-powered job search automation
 After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/thomas/Code/job-agent
+WorkingDirectory=/home/thomas/Code/JobScout
 ExecStart=/usr/bin/python3 -u main.py
 Restart=on-failure
 RestartSec=60

@@ -1,4 +1,4 @@
-# 🤖 Job Agent — AI-Powered Job Search Automation
+# 🔍 JobScout — AI-Powered Job Search Automation
 
 > Autonomous agent that scrapes, scores, and tracks job opportunities using LLM-based profile matching.
 
@@ -49,8 +49,8 @@
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/ThomasMeb/job-agent.git
-cd job-agent
+git clone https://github.com/ThomasMeb/JobScout.git
+cd JobScout
 pip install -r requirements.txt
 ```
 
@@ -180,14 +180,14 @@ The agent auto-creates all required properties on first sync.
 ```bash
 # Create service
 mkdir -p ~/.config/systemd/user
-cp job-agent.service ~/.config/systemd/user/
+cp jobscout.service ~/.config/systemd/user/
 
 # Enable and start
 systemctl --user daemon-reload
-systemctl --user enable --now job-agent
+systemctl --user enable --now jobscout
 
 # Logs
-journalctl --user -u job-agent -f
+journalctl --user -u jobscout -f
 ```
 
 ## Costs
@@ -204,7 +204,7 @@ Budget is configurable and enforced — the agent stops scoring when the monthly
 ## Project Structure
 
 ```
-job-agent/
+JobScout/
 ├── main.py                    # CLI entry point (--once / daemon)
 ├── dashboard.py               # Streamlit dashboard
 ├── config.yaml                # All configuration

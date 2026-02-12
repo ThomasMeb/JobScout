@@ -91,13 +91,13 @@ def format_salary(row):
 
 # --- Page config ---
 st.set_page_config(
-    page_title="Job Agent Dashboard",
+    page_title="JobScout Dashboard",
     page_icon="🤖",
     layout="wide",
 )
 
 # --- Sidebar ---
-st.sidebar.title("🤖 Job Agent")
+st.sidebar.title("🔍 JobScout")
 demo_mode = st.sidebar.toggle("Mode démo", value=False, help="Anonymise les données sensibles")
 st.sidebar.divider()
 
@@ -139,7 +139,7 @@ else:
     companies_display = companies_df
 
 # --- KPIs ---
-st.title("🤖 Job Agent — Dashboard")
+st.title("🔍 JobScout — Dashboard")
 
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Total jobs", len(jobs_df))
@@ -299,4 +299,4 @@ if not llm_costs.empty:
 
 # --- Footer ---
 st.divider()
-st.caption("[Job Agent](https://github.com/ThomasMeb/job-agent) — AI-Powered Job Search Automation")
+st.caption("[JobScout](https://github.com/ThomasMeb/JobScout) — AI-Powered Job Search Automation")
