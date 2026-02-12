@@ -6,6 +6,10 @@ import plotly.express as px
 import streamlit as st
 
 DB_PATH = Path(__file__).parent / "data" / "jobs.db"
+CLOUD_DB = Path(__file__).parent / "assets" / "demo.db"
+FORCE_DEMO = not DB_PATH.exists() and CLOUD_DB.exists()
+if FORCE_DEMO:
+    DB_PATH = CLOUD_DB
 
 
 def get_conn():
@@ -98,7 +102,11 @@ st.set_page_config(
 
 # --- Sidebar ---
 st.sidebar.title("🔍 JobScout")
-demo_mode = st.sidebar.toggle("Mode démo", value=False, help="Anonymise les données sensibles")
+if FORCE_DEMO:
+    demo_mode = True
+    st.sidebar.info("Mode démo (données anonymisées)")
+else:
+    demo_mode = st.sidebar.toggle("Mode démo", value=False, help="Anonymise les données sensibles")
 st.sidebar.divider()
 
 jobs_df = load_jobs()
