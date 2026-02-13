@@ -162,24 +162,39 @@ k5.metric("Coût LLM", f"${total_cost:.2f}")
 # --- Score distribution ---
 st.subheader("Distribution des scores")
 
-fig_hist = px.histogram(
-    filtered,
-    x="match_score",
-    nbins=10,
-    color_discrete_sequence=["#4A90D9"],
-    labels={"match_score": "Score", "count": "Nombre"},
-    text_auto=True,
-)
-fig_hist.update_layout(
-    showlegend=False,
-    margin=dict(l=0, r=0, t=10, b=0),
-    height=300,
-    bargap=0.1,
-    yaxis_title="Nombre d'offres",
-    xaxis_title="Score de matching",
-)
-fig_hist.update_xaxes(dtick=10)
-st.plotly_chart(fig_hist, width="stretch")
+score_col1, score_col2 = st.columns([2, 1])
+
+with score_col1:
+    # Group scores into meaningful categories
+    bins = [0, 30, 50, 70, 100]
+    labels_cat = ["Faible (0-30)", "Moyen (30-50)", "Bon (50-70)", "Excellent (70+)"]
+    colors_cat = ["#E74C3C", "#F39C12", "#4A90D9", "#2ECC71"]
+    score_cats = pd.cut(filtered["match_score"], bins=bins, labels=labels_cat, include_lowest=True)
+    cat_counts = score_cats.value_counts().reindex(labels_cat).fillna(0).astype(int)
+
+    fig_cat = px.bar(
+        x=cat_counts.index,
+        y=cat_counts.values,
+        color=cat_counts.index,
+        color_discrete_map=dict(zip(labels_cat, colors_cat)),
+        text=cat_counts.values,
+        labels={"x": "", "y": "Nombre d'offres"},
+    )
+    fig_cat.update_layout(
+        showlegend=False,
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=300,
+        bargap=0.2,
+    )
+    fig_cat.update_traces(textposition="outside")
+    st.plotly_chart(fig_cat, use_container_width=True)
+
+with score_col2:
+    total = len(filtered)
+    for label, color, count in zip(labels_cat, colors_cat, cat_counts.values):
+        pct = count / total * 100 if total > 0 else 0
+        st.markdown(f":{color[1:]}[**{label}**]")
+        st.progress(pct / 100, text=f"{count} offres ({pct:.0f}%)")
 
 # --- Top jobs ---
 st.subheader(f"Top offres ({len(filtered)} résultats)")
@@ -280,30 +295,14 @@ with col_right:
 # --- LLM costs ---
 if not llm_costs.empty:
     st.subheader("Coûts LLM")
-    llm_costs = llm_costs.copy()
-    llm_costs["cumulative"] = llm_costs["cost"].cumsum()
-    fig_cost = px.bar(
-        llm_costs,
-        x="date",
-        y="cost",
-        labels={"cost": "Coût du jour ($)", "date": "Date", "cumulative": "Cumulé ($)"},
-        color_discrete_sequence=["#FF6B6B"],
-        text_auto="$.2f",
-    )
-    fig_cost.add_scatter(
-        x=llm_costs["date"],
-        y=llm_costs["cumulative"],
-        mode="lines+markers",
-        name="Cumulé",
-        line=dict(color="#4A90D9", width=2),
-    )
-    fig_cost.update_layout(
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=250,
-        legend=dict(orientation="h", y=1.1),
-        xaxis=dict(type="category"),
-    )
-    st.plotly_chart(fig_cost, width="stretch")
+    cost_k1, cost_k2, cost_k3, cost_k4 = st.columns(4)
+    total_tokens = llm_costs["tokens"].sum()
+    total_days = len(llm_costs)
+    cost_per_job = total_cost / len(jobs_df) if len(jobs_df) > 0 else 0
+    cost_k1.metric("Coût total", f"${total_cost:.2f}")
+    cost_k2.metric("Coût / job", f"${cost_per_job:.4f}")
+    cost_k3.metric("Tokens utilisés", f"{total_tokens / 1e6:.1f}M")
+    cost_k4.metric("Jours actifs", total_days)
 
 # --- Footer ---
 st.divider()
