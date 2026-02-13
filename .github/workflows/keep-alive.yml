@@ -1,0 +1,20 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Ping toutes les 14 minutes (Render free tier sleep = 15 min)
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render app
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://jobscout.onrender.com)
+          echo "Status: $response"
+          if [ "$response" -ge 500 ]; then
+            echo "::warning::App returned $response"
+            exit 1
+          fi
