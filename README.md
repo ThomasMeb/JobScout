@@ -9,7 +9,7 @@
 > JobScout is an autonomous agent that continuously scrapes job boards, scores each opportunity against your profile using an LLM, and notifies you on Telegram — so you only see the jobs that actually match.
 
 ```
-5 sources → 2,000+ jobs → LLM scoring → Telegram alerts → Notion tracking
+6 sources → 3,400+ jobs → LLM scoring → Telegram alerts → Feedback loop → Auto-candidature → Notion tracking
 ```
 
 ---
@@ -21,8 +21,9 @@
 | Manually check 5+ job boards daily | Agent scrapes every 6h automatically |
 | Skim hundreds of irrelevant listings | LLM scores each job 0-100 against YOUR profile |
 | Miss good opportunities | Telegram alert within minutes |
+| Generic CV for every application | **ATS-optimized PDF tailored per job** |
 | Lose track of applications | Notion CRM auto-populated |
-| Spend hours, find little | **2,000 jobs scored for ~$1.50** |
+| Spend hours, find little | **3,400 jobs scored for ~$2.50** |
 
 ---
 
@@ -30,10 +31,11 @@
 
 - **Multi-source scraping** — Welcome to the Jungle, Adzuna, France Travail, RemoteOK, JobSpy (Indeed/LinkedIn/Glassdoor)
 - **LLM scoring** — Each job scored 0-100 with reasoning, matched keywords, and missing skills
-- **Telegram bot** — Real-time notifications with action buttons (Interested / Reject / Prepare CV)
+- **Feedback loop** — Learns from your Interested/Rejected choices to refine future scoring (+5/-5 bonus/malus)
+- **Auto-candidature** — One-click pipeline: ATS-optimized PDF (LaTeX), cover letter, and LinkedIn networking tips
+- **Telegram bot** — Real-time notifications with action buttons (Interested / Reject / Prepare / Validate)
 - **Notion sync** — Jobs and target companies pushed to your workspace automatically
 - **Company targeting** — Manual watchlist + La Bonne Boite API for spontaneous applications
-- **Application briefs** — Auto-generated preparation dossiers for top opportunities
 - **Streamlit dashboard** — Visual analytics with filters, score distribution, cost tracking
 - **Budget control** — Monthly LLM spending cap with automatic enforcement
 - **Deduplication** — SHA256 hashing across sources, no duplicate alerts
@@ -83,10 +85,12 @@
 
 1. **Scrape** — Fetch jobs from all enabled sources (async)
 2. **Deduplicate** — SHA256 hash on title + company + URL
-3. **Score** — LLM evaluates job-profile fit (0-100) with detailed reasoning
+3. **Score** — LLM evaluates job-profile fit (0-100), boosted by learned preferences
 4. **Notify** — Telegram messages with inline action buttons for jobs above threshold
-5. **Research** — Company intelligence via La Bonne Boite + manual targets
-6. **Sync** — Push scored jobs and companies to Notion databases
+5. **Feedback** — User choices (Interested/Rejected) train keyword preferences for future scoring
+6. **Apply** — One-click candidature: tailored CV PDF + cover letter + LinkedIn tips via Telegram
+7. **Research** — Company intelligence via La Bonne Boite + manual targets
+8. **Sync** — Push scored jobs and companies to Notion databases
 
 ---
 
@@ -233,6 +237,8 @@ The agent auto-creates all required properties on first sync.
 | `/pending` | Jobs waiting for review |
 | `/companies` | Target companies list |
 | `/costs` | LLM spending this month |
+| `/preferences` | Show learned keyword preferences from feedback |
+| `/prepare <id>` | Generate tailored CV + cover letter + LinkedIn tips |
 | `/pause` / `/resume` | Pause/resume the scheduler |
 
 ### Run as a service (systemd)
@@ -254,10 +260,10 @@ journalctl --user -u jobscout -f
 
 DeepSeek makes this extremely affordable:
 
-| Volume | Cost | Notes |
-|--------|------|-------|
-| ~1,300 jobs scored | ~$1.00 | First full run |
-| ~2,000 jobs scored | ~$1.50 | With dedup, mostly new jobs |
+| Operation | Cost | Notes |
+|-----------|------|-------|
+| ~3,400 jobs scored | ~$2.50 | Across 6 sources |
+| 1 candidature (CV + letter + tips) | ~$0.005 | ~1,000 candidatures for $5 |
 | Monthly estimate | ~$3–5 | 4 cycles/day, budget enforced |
 
 Budget is configurable in `config.yaml` — the agent stops scoring automatically when the monthly limit is reached.
@@ -276,10 +282,12 @@ JobScout/
 │
 ├── job_agent/                 # Core library
 │   ├── config.py              # Config loader
-│   ├── storage.py             # SQLite schema + CRUD
+│   ├── storage.py             # SQLite schema + CRUD + migrations
 │   ├── llm.py                 # DeepSeek async client
-│   ├── matcher.py             # LLM-based job scoring
-│   ├── notifier.py            # Telegram bot + notifications
+│   ├── matcher.py             # LLM-based job scoring (with feedback)
+│   ├── feedback_loop.py       # Preference learning from user choices
+│   ├── candidature.py         # Auto-candidature pipeline (CV + letter + tips)
+│   ├── notifier.py            # Telegram bot + notifications + candidature flow
 │   ├── scheduler.py           # Pipeline orchestration
 │   ├── company_research.py    # La Bonne Boite + targets
 │   ├── application_prep.py    # Brief generator
@@ -292,8 +300,43 @@ JobScout/
 │       ├── remoteok.py        # RemoteOK
 │       └── jobspy.py          # JobSpy (Indeed + LinkedIn)
 │
-└── data/                      # SQLite DB + briefs (gitignored)
+├── templates/
+│   └── cv_template.tex        # ATS-friendly LaTeX CV template
+│
+└── data/                      # SQLite DB + applications (gitignored)
 ```
+
+---
+
+## Candidature Pipeline
+
+When you click **"Préparer candidature"** on a Telegram notification (or use `/prepare <id>`), JobScout generates a complete application package:
+
+```
+Job description → LLM tailoring → LaTeX compilation → Telegram delivery
+```
+
+| Output | Format | Description |
+|--------|--------|-------------|
+| **Tailored CV** | PDF | ATS-optimized, keywords from the job description integrated, reverse chronological order |
+| **Cover letter** | Markdown | Professional email, 250-400 words, specific to the company and role |
+| **LinkedIn tips** | Markdown | Who to contact, search queries, message template, timing advice |
+
+The CV is compiled with LaTeX (`pdflatex`) using `cmap` + `lmodern` for proper text extraction by ATS parsers. All files are saved to `data/applications/{company}/{job}/` and can be validated or regenerated from Telegram.
+
+> **Requires**: `texlive-base texlive-latex-extra texlive-fonts-recommended`
+
+---
+
+## Feedback Loop
+
+JobScout learns from your choices. Every time you mark a job as **Interested** or **Rejected**, the system:
+
+1. Tracks which keywords appear in jobs you like vs. dislike
+2. Identifies preferred companies, locations, and sources
+3. Injects this as scoring context (+5/-5 bonus/malus) once you have 5+ feedbacks
+
+Use `/preferences` to see what the system has learned. The more feedback you give, the more relevant the scoring becomes.
 
 ---
 
