@@ -44,6 +44,8 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("costs", cmd_costs))
     app.add_handler(CommandHandler("pause", cmd_pause))
     app.add_handler(CommandHandler("resume", cmd_resume))
+    app.add_handler(CommandHandler("preferences", cmd_preferences))
+    app.add_handler(CommandHandler("prepare", cmd_prepare))
     app.add_handler(CallbackQueryHandler(handle_callback))
     return app
 
@@ -58,6 +60,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/pending — Offres en attente\n"
         "/companies — Entreprises cibles\n"
         "/costs — Coûts LLM du mois\n"
+        "/preferences — Préférences apprises\n"
+        "/prepare <id> — Préparer candidature\n"
         "/pause — Mettre en pause\n"
         "/resume — Reprendre"
     )
@@ -151,6 +155,75 @@ async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Scheduler non disponible.")
 
 
+async def cmd_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show learned preferences from user feedback."""
+    from job_agent.feedback_loop import analyze_keyword_preferences, get_feedback_stats
+
+    conn = get_connection()
+    stats = get_feedback_stats(conn)
+    prefs = analyze_keyword_preferences(conn)
+    conn.close()
+
+    text = (
+        f"Feedback total : {stats['total_feedback']}\n"
+        f"  Intéressé : {stats['interested']}\n"
+        f"  Rejeté : {stats['rejected']}\n"
+        f"  Postulé : {stats['applied']}\n\n"
+    )
+
+    if stats["total_feedback"] < 5:
+        text += "Pas assez de feedback (min 5) pour apprendre les préférences."
+        await update.message.reply_text(text)
+        return
+
+    if prefs["preferred_keywords"]:
+        kws = ", ".join(kw for kw, _ in prefs["preferred_keywords"][:10])
+        text += f"Keywords préférés : {kws}\n\n"
+
+    if prefs["avoided_keywords"]:
+        kws = ", ".join(kw for kw, _ in prefs["avoided_keywords"][:10])
+        text += f"Keywords évités : {kws}\n\n"
+
+    if prefs["preferred_companies"]:
+        companies = ", ".join(f"{c} ({n})" for c, n in prefs["preferred_companies"][:5])
+        text += f"Entreprises : {companies}\n\n"
+
+    if prefs["preferred_locations"]:
+        locs = ", ".join(f"{loc} ({n})" for loc, n in prefs["preferred_locations"][:5])
+        text += f"Localisations : {locs}\n"
+
+    await update.message.reply_text(text)
+
+
+async def cmd_prepare(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manually prepare candidature for a job by ID. Usage: /prepare <job_id>"""
+    if not context.args:
+        await update.message.reply_text("Usage : /prepare <job_id>")
+        return
+
+    try:
+        job_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("ID invalide. Usage : /prepare <job_id>")
+        return
+
+    conn = get_connection()
+    job = get_job_by_id(conn, job_id)
+    if not job:
+        await update.message.reply_text(f"Job #{job_id} introuvable.")
+        conn.close()
+        return
+
+    await update.message.reply_text(
+        f"Préparation en cours pour :\n"
+        f"{job['title']} @ {job['company']}..."
+    )
+
+    asyncio.create_task(
+        _run_candidature_pipeline(job, conn, update.message.chat_id, context.bot)
+    )
+
+
 # --- Notifications ---
 
 async def notify_new_jobs(bot: Bot, conn: sqlite3.Connection, max_notifications: int = 10) -> int:
@@ -227,6 +300,79 @@ async def _send_job_notification(chat_id: int, job: dict, bot: Bot):
     await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
 
 
+# --- Candidature pipeline ---
+
+async def _run_candidature_pipeline(job: dict, conn: sqlite3.Connection, chat_id: int, bot: Bot):
+    """Run the full candidature pipeline and send results via Telegram."""
+    from job_agent.candidature import prepare_candidature
+
+    try:
+        result = await prepare_candidature(job, conn, language="auto")
+
+        # Send CV PDF
+        if result["cv_pdf"] and result["cv_pdf"].exists():
+            with open(result["cv_pdf"], "rb") as f:
+                await bot.send_document(
+                    chat_id=chat_id,
+                    document=f,
+                    filename=f"CV_{job['company']}_{job['title'][:30]}.pdf",
+                    caption=f"CV adapté pour {job['title']} @ {job['company']}",
+                )
+        else:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="PDF non généré (pdflatex manquant ?). Les fichiers texte sont disponibles.",
+            )
+
+        # Send cover letter
+        if result["cover_letter"] and result["cover_letter"].exists():
+            cover_text = result["cover_letter"].read_text(encoding="utf-8")
+            if len(cover_text) > 4000:
+                cover_text = cover_text[:4000] + "\n..."
+            await bot.send_message(
+                chat_id=chat_id,
+                text=f"📧 Lettre de motivation :\n\n{cover_text}",
+            )
+
+        # Send LinkedIn tips
+        if result["linkedin_tips"] and result["linkedin_tips"].exists():
+            tips_text = result["linkedin_tips"].read_text(encoding="utf-8")
+            if len(tips_text) > 4000:
+                tips_text = tips_text[:4000] + "\n..."
+            await bot.send_message(
+                chat_id=chat_id,
+                text=f"🔗 Tips LinkedIn :\n\n{tips_text}",
+            )
+
+        # Final buttons
+        buttons = [
+            [
+                InlineKeyboardButton("✅ Valider", callback_data=f"validate_{job['id']}"),
+                InlineKeyboardButton("🔄 Régénérer", callback_data=f"regen_{job['id']}"),
+            ],
+        ]
+        if job.get("apply_url") or job.get("source_url"):
+            url = job.get("apply_url") or job["source_url"]
+            buttons.append([
+                InlineKeyboardButton("🔗 Postuler", url=url),
+            ])
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"Candidature prête — coût : ${result['total_cost']:.4f}",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+
+    except Exception as e:
+        logger.error(f"Candidature pipeline failed for job {job['id']}: {e}")
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"Erreur lors de la préparation : {e}",
+        )
+    finally:
+        conn.close()
+
+
 # --- Callbacks ---
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -278,11 +424,46 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         update_job_status(conn, item_id, "interested")
         await query.edit_message_text(
-            f"📝 {job['title']} @ {job['company']} — candidature en préparation\n"
-            f"🔗 {job['source_url']}\n\n"
-            f"Lancez `/resume-tailoring` dans Claude Code pour générer le CV sur mesure."
+            f"📝 {job['title']} @ {job['company']} — préparation en cours..."
+        )
+        asyncio.create_task(
+            _run_candidature_pipeline(job, conn, query.message.chat_id, context.bot)
+        )
+        return
+
+    if action == "validate":
+        job = get_job_by_id(conn, item_id)
+        if not job:
+            await query.edit_message_text("Offre introuvable.")
+            conn.close()
+            return
+        update_job_status(conn, item_id, "applied")
+        conn.execute(
+            "UPDATE applications SET status='validated', submitted_at=datetime('now') WHERE job_id=? AND status='draft'",
+            (item_id,),
+        )
+        conn.commit()
+        await query.edit_message_text(
+            f"✅ {job['title']} @ {job['company']} — candidature validée !"
         )
         conn.close()
+        return
+
+    if action == "regen":
+        job = get_job_by_id(conn, item_id)
+        if not job:
+            await query.edit_message_text("Offre introuvable.")
+            conn.close()
+            return
+        # Delete previous draft
+        conn.execute("DELETE FROM applications WHERE job_id=? AND status='draft'", (item_id,))
+        conn.commit()
+        await query.edit_message_text(
+            f"🔄 {job['title']} @ {job['company']} — régénération en cours..."
+        )
+        asyncio.create_task(
+            _run_candidature_pipeline(job, conn, query.message.chat_id, context.bot)
+        )
         return
 
     # Job actions

@@ -128,9 +128,18 @@ def init_db():
 def _migrate(conn: sqlite3.Connection):
     """Apply schema migrations for existing databases."""
     # Check if notion_page_id column exists in jobs
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
-    if "notion_page_id" not in cols:
+    jobs_cols = {row[1] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "notion_page_id" not in jobs_cols:
         conn.execute("ALTER TABLE jobs ADD COLUMN notion_page_id TEXT")
+        conn.commit()
+
+    # Add linkedin_tips_path and cost_usd to applications
+    app_cols = {row[1] for row in conn.execute("PRAGMA table_info(applications)").fetchall()}
+    if "linkedin_tips_path" not in app_cols:
+        conn.execute("ALTER TABLE applications ADD COLUMN linkedin_tips_path TEXT")
+        conn.commit()
+    if "cost_usd" not in app_cols:
+        conn.execute("ALTER TABLE applications ADD COLUMN cost_usd REAL DEFAULT 0")
         conn.commit()
 
 

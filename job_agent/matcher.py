@@ -3,6 +3,7 @@ import logging
 import sqlite3
 
 from job_agent.config import load_config, load_profile_text
+from job_agent.feedback_loop import generate_preference_summary
 from job_agent.llm import call_llm, estimate_cost
 from job_agent.storage import get_unscored_jobs, update_job_score, log_llm_usage
 
@@ -12,13 +13,13 @@ SCORING_SYSTEM_PROMPT = """Tu es un expert en recrutement ML/Data Science. Tu é
 
 PROFIL CANDIDAT :
 {profile}
-
+{feedback_section}
 INSTRUCTIONS :
 - Évalue la compatibilité globale sur 100
 - Identifie les mots-clés qui matchent et ceux qui manquent
 - Donne une priorité (high/medium/low)
 - Sois réaliste : un score > 80 signifie très bon match
-
+{feedback_instructions}
 Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaires) :
 {{
   "score": <0-100>,
@@ -34,7 +35,22 @@ async def score_new_jobs(conn: sqlite3.Connection) -> int:
     """Score all unscored jobs. Returns count of scored jobs."""
     cfg = load_config()
     profile = load_profile_text()
-    system_prompt = SCORING_SYSTEM_PROMPT.format(profile=profile)
+
+    # Inject feedback preferences if enough data
+    feedback_text = generate_preference_summary(conn)
+    if feedback_text:
+        feedback_section = f"\nPREFERENCES UTILISATEUR (basées sur le feedback) :\n{feedback_text}\n"
+        feedback_instructions = ("- Applique un bonus de +5 points si l'offre contient des keywords préférés par le candidat\n"
+                                 "- Applique un malus de -5 points si l'offre contient des keywords évités par le candidat")
+    else:
+        feedback_section = ""
+        feedback_instructions = ""
+
+    system_prompt = SCORING_SYSTEM_PROMPT.format(
+        profile=profile,
+        feedback_section=feedback_section,
+        feedback_instructions=feedback_instructions,
+    )
     model = cfg["llm"]["model"]
     max_tokens = cfg["llm"]["max_tokens_scoring"]
     temperature = cfg["llm"]["temperature_scoring"]
