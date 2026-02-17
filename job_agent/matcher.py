@@ -15,19 +15,25 @@ PROFIL CANDIDAT :
 {profile}
 {feedback_section}
 INSTRUCTIONS :
-- Évalue la compatibilité globale sur 100
-- Identifie les mots-clés qui matchent et ceux qui manquent
-- Donne une priorité (high/medium/low)
-- Sois réaliste : un score > 80 signifie très bon match
+Évalue l'offre selon ces 5 critères. Sois précis, utilise toute l'échelle (pas uniquement des multiples de 5).
+
+1. skills (0-30) : Match entre les compétences techniques demandées et le profil (langages, frameworks, outils)
+2. seniority (0-25) : Adéquation du niveau d'expérience demandé vs le profil candidat
+3. location (0-20) : Compatibilité lieu de travail / remote policy avec les préférences
+4. domain (0-15) : Intérêt du secteur, de la mission et du type de projet
+5. compensation (0-10) : Cohérence de la rémunération avec les attentes (si non précisé, mettre 5)
 {feedback_instructions}
 Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaires) :
 {{
-  "score": <0-100>,
+  "skills": <0-30>,
+  "seniority": <0-25>,
+  "location": <0-20>,
+  "domain": <0-15>,
+  "compensation": <0-10>,
   "match_keywords": ["keyword1", "keyword2"],
   "missing_keywords": ["keyword1"],
-  "reasoning": "<explication en 2-3 phrases>",
-  "language": "<fr|en>",
-  "priority": "<high|medium|low>"
+  "reasoning": "<explication en 1-2 phrases>",
+  "language": "<fr|en>"
 }}"""
 
 
@@ -40,8 +46,8 @@ async def score_new_jobs(conn: sqlite3.Connection) -> int:
     feedback_text = generate_preference_summary(conn)
     if feedback_text:
         feedback_section = f"\nPREFERENCES UTILISATEUR (basées sur le feedback) :\n{feedback_text}\n"
-        feedback_instructions = ("- Applique un bonus de +5 points si l'offre contient des keywords préférés par le candidat\n"
-                                 "- Applique un malus de -5 points si l'offre contient des keywords évités par le candidat")
+        feedback_instructions = ("- Tiens compte des préférences utilisateur dans les sous-scores skills et domain\n"
+                                 "- Keywords préférés → bonus sur skills/domain, keywords évités → malus sur skills/domain")
     else:
         feedback_section = ""
         feedback_instructions = ""
@@ -109,7 +115,7 @@ Description :
 
 
 def _parse_scoring_response(response: str) -> dict:
-    """Parse the LLM JSON response, handling markdown wrapping."""
+    """Parse the LLM JSON response with structured sub-scores."""
     text = response.strip()
     # Strip markdown code fences if present
     if text.startswith("```"):
@@ -129,13 +135,38 @@ def _parse_scoring_response(response: str) -> dict:
             "priority": "low",
         }
 
+    # Extract sub-scores with bounds clamping
+    sub = {
+        "skills": min(max(float(result.get("skills", 0)), 0), 30),
+        "seniority": min(max(float(result.get("seniority", 0)), 0), 25),
+        "location": min(max(float(result.get("location", 0)), 0), 20),
+        "domain": min(max(float(result.get("domain", 0)), 0), 15),
+        "compensation": min(max(float(result.get("compensation", 0)), 0), 10),
+    }
+    score = sum(sub.values())
+
+    # Derive priority from total score
+    if score >= 75:
+        priority = "high"
+    elif score >= 50:
+        priority = "medium"
+    else:
+        priority = "low"
+
+    # Format reasoning with sub-score breakdown
+    raw_reasoning = result.get("reasoning", "")
+    breakdown = (f"Skills: {sub['skills']:.0f}/30 | Séniorité: {sub['seniority']:.0f}/25 | "
+                 f"Loc: {sub['location']:.0f}/20 | Domaine: {sub['domain']:.0f}/15 | "
+                 f"Rém: {sub['compensation']:.0f}/10")
+    reasoning = f"{breakdown}\n{raw_reasoning}" if raw_reasoning else breakdown
+
     return {
-        "score": float(result.get("score", 0)),
+        "score": score,
         "match_keywords": result.get("match_keywords", []),
         "missing_keywords": result.get("missing_keywords", []),
-        "reasoning": result.get("reasoning", ""),
+        "reasoning": reasoning,
         "language": result.get("language", "fr"),
-        "priority": result.get("priority", "low"),
+        "priority": priority,
     }
 
 
