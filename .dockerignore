@@ -1,0 +1,10 @@
+.venv/
+.git/
+.ruff_cache/
+__pycache__/
+data/
+.env
+config.yaml
+*.pyc
+.devcontainer/
+assets/demo.db

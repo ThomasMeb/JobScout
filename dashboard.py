@@ -191,9 +191,10 @@ with score_col1:
 
 with score_col2:
     total = len(filtered)
-    for label, color, count in zip(labels_cat, colors_cat, cat_counts.values):
+    st_colors = ["red", "orange", "blue", "green"]
+    for label, st_color, count in zip(labels_cat, st_colors, cat_counts.values):
         pct = count / total * 100 if total > 0 else 0
-        st.markdown(f":{color[1:]}[**{label}**]")
+        st.markdown(f":{st_color}[**{label}**]")
         st.progress(pct / 100, text=f"{count} offres ({pct:.0f}%)")
 
 # --- Top jobs ---
