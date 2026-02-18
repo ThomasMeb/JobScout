@@ -20,6 +20,10 @@ class WorkerSettings(BaseSettings):
     france_travail_client_id: str = ""
     france_travail_client_secret: str = ""
 
+    # Email notifications (Resend)
+    resend_api_key: str = ""
+    notification_from_email: str = "JobScout <noreply@jobscout.app>"
+
     # Worker
     cycle_interval_hours: int = 4
     scoring_max_tokens: int = 512

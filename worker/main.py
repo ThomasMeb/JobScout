@@ -2,6 +2,8 @@
 import asyncio
 import logging
 
+from worker.config import get_settings
+from worker.notifications import send_notifications
 from worker.tasks import scrape_global, score_per_user
 
 logging.basicConfig(
@@ -10,29 +12,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CYCLE_INTERVAL_HOURS = 4
-
-
 async def run_cycle():
-    """One full worker cycle: scrape then score."""
+    """One full worker cycle: scrape → score → notify."""
     logger.info("Worker cycle starting...")
     try:
         await scrape_global()
         await score_per_user()
+        await send_notifications()
         logger.info("Worker cycle complete")
     except Exception as e:
         logger.error(f"Worker cycle failed: {e}", exc_info=True)
 
 
 async def main():
-    logger.info(f"Worker starting — cycle every {CYCLE_INTERVAL_HOURS}h")
+    settings = get_settings()
+    interval = settings.cycle_interval_hours
+    logger.info(f"Worker starting — cycle every {interval}h")
 
     # Run first cycle immediately
     await run_cycle()
 
     # Loop
     while True:
-        await asyncio.sleep(CYCLE_INTERVAL_HOURS * 3600)
+        await asyncio.sleep(interval * 3600)
         await run_cycle()
 
 
