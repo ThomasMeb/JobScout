@@ -20,8 +20,10 @@ INSTRUCTIONS :
 1. skills (0-30) : Match entre les compétences techniques demandées et le profil (langages, frameworks, outils)
 2. seniority (0-25) : Adéquation du niveau d'expérience demandé vs le profil candidat
 3. location (0-20) : Compatibilité lieu de travail / remote policy avec les préférences
-4. domain (0-15) : Intérêt du secteur, de la mission et du type de projet
+4. domain (0-15) : Qualité de la mission et orientation produit. Le candidat est orienté produit et secteur-agnostique : le secteur d'activité (fintech, retail, santé, industrie…) n'a AUCUNE importance. Évalue uniquement : la mission est-elle intéressante ? Y a-t-il un vrai impact produit/business ? Le rôle est-il orienté construction/amélioration de produit plutôt que maintenance pure ?
 5. compensation (0-10) : Cohérence de la rémunération avec les attentes (si non précisé, mettre 5)
+
+IMPORTANT : Le candidat a travaillé dans l'insurtech et l'e-commerce par opportunité, PAS par préférence sectorielle. Ne pas favoriser ces secteurs. Tous les secteurs se valent tant que la mission et le rôle produit sont intéressants.
 {feedback_instructions}
 Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaires) :
 {{
