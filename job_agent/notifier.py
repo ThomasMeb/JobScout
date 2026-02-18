@@ -12,6 +12,7 @@ from telegram.ext import (
 )
 
 from job_agent.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, load_config
+from job_agent.llm import check_deepseek_balance
 from job_agent.storage import (
     get_companies,
     get_company_by_id,
@@ -101,15 +102,20 @@ async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_costs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_connection()
     cost = get_monthly_cost(conn)
-    cfg = load_config()
-    budget = cfg["llm"]["monthly_budget_usd"]
     conn.close()
-    pct = (cost / budget * 100) if budget > 0 else 0
-    await update.message.reply_text(
-        f"Coût LLM ce mois : ${cost:.4f}\n"
-        f"Budget : ${budget:.2f}\n"
-        f"Utilisation : {pct:.1f}%"
-    )
+    balance_info = await check_deepseek_balance()
+    if balance_info:
+        balance = balance_info["total_balance"]
+        currency = balance_info["currency"]
+        await update.message.reply_text(
+            f"Coût LLM ce mois : ${cost:.4f}\n"
+            f"Solde DeepSeek : {balance:.2f} {currency}"
+        )
+    else:
+        await update.message.reply_text(
+            f"Coût LLM ce mois : ${cost:.4f}\n"
+            f"Solde DeepSeek : indisponible"
+        )
 
 
 async def cmd_companies(update: Update, context: ContextTypes.DEFAULT_TYPE):

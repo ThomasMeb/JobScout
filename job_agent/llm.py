@@ -1,5 +1,6 @@
 import logging
 
+import httpx
 from openai import AsyncOpenAI
 
 from job_agent.config import DEEPSEEK_API_KEY, load_config
@@ -54,3 +55,38 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     prices = PRICING.get(model, PRICING["deepseek-chat"])
     cost = (input_tokens * prices["input"] + output_tokens * prices["output"]) / 1_000_000
     return round(cost, 6)
+
+
+async def check_deepseek_balance() -> dict | None:
+    """Query DeepSeek API for real account balance.
+
+    Returns dict with keys: is_available, total_balance, currency
+    or None if the request fails.
+    """
+    url = "https://api.deepseek.com/user/balance"
+    headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            # Find USD balance (fallback to first entry)
+            for info in data.get("balance_infos", []):
+                if info.get("currency") == "USD":
+                    return {
+                        "is_available": data.get("is_available", False),
+                        "total_balance": float(info["total_balance"]),
+                        "currency": "USD",
+                    }
+            # No USD entry, use first available
+            if data.get("balance_infos"):
+                info = data["balance_infos"][0]
+                return {
+                    "is_available": data.get("is_available", False),
+                    "total_balance": float(info["total_balance"]),
+                    "currency": info.get("currency", "???"),
+                }
+            return None
+    except Exception as e:
+        logger.warning(f"Failed to check DeepSeek balance: {e}")
+        return None

@@ -6,6 +6,7 @@ from telegram import Bot
 
 from job_agent.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, load_config
 from job_agent.company_research import run_company_research
+from job_agent.llm import check_deepseek_balance
 from job_agent.matcher import score_new_jobs
 from job_agent.notion_sync import sync_companies_to_notion, sync_jobs_to_notion
 from job_agent.notifier import notify_new_jobs
@@ -20,7 +21,7 @@ from job_agent.scrapers.jobspy import JobSpyScraper
 from job_agent.scrapers.remoteok import RemoteOKScraper
 from job_agent.scrapers.welovedevs import WeLoveDevsScraper
 from job_agent.scrapers.wttj import WTTJScraper
-from job_agent.storage import get_connection, init_db, insert_job, log_scrape_run, get_monthly_cost
+from job_agent.storage import get_connection, init_db, insert_job, log_scrape_run
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +45,23 @@ async def run_cycle():
     init_db()
     conn = get_connection()
 
-    # Check budget
-    monthly_cost = get_monthly_cost(conn)
-    budget = cfg["llm"]["monthly_budget_usd"]
-    if monthly_cost >= budget:
-        logger.warning(f"Monthly budget exhausted: ${monthly_cost:.4f} >= ${budget:.2f}")
-        if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-            bot = Bot(token=TELEGRAM_BOT_TOKEN)
-            await bot.send_message(
-                chat_id=int(TELEGRAM_CHAT_ID),
-                text=f"⚠️ Budget LLM épuisé ce mois : ${monthly_cost:.4f} / ${budget:.2f}\nScoring désactivé.",
-            )
-        conn.close()
-        return
+    # Check DeepSeek balance (alert only, never blocks scoring)
+    balance_info = await check_deepseek_balance()
+    if balance_info:
+        threshold = cfg["llm"].get("balance_alert_threshold_usd", 2.0)
+        balance = balance_info["total_balance"]
+        currency = balance_info["currency"]
+        logger.info(f"DeepSeek balance: {balance:.2f} {currency}")
+        if balance < threshold:
+            logger.warning(f"DeepSeek balance low: {balance:.2f} {currency} (threshold: {threshold:.2f})")
+            if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+                bot = Bot(token=TELEGRAM_BOT_TOKEN)
+                await bot.send_message(
+                    chat_id=int(TELEGRAM_CHAT_ID),
+                    text=f"⚠️ Solde DeepSeek bas : {balance:.2f} {currency}\nPense à recharger !",
+                )
+    else:
+        logger.warning("Could not check DeepSeek balance")
 
     queries = cfg["search"]["queries"]
     locations = cfg["search"]["locations"]
