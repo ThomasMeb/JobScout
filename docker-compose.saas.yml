@@ -1,0 +1,38 @@
+# JobScout SaaS Stack
+# Separate from the existing docker-compose.yml (local daemon)
+# Usage: docker compose -f docker-compose.saas.yml up
+
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file: .env.saas
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    env_file: .env.saas
+    volumes:
+      - ./job_agent:/app/job_agent:ro
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - backend
