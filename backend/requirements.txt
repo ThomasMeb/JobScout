@@ -6,7 +6,7 @@ uvicorn[standard]>=0.30.0
 supabase>=2.10.0
 
 # Auth
-PyJWT>=2.9.0
+PyJWT[crypto]>=2.9.0
 
 # Settings
 pydantic-settings>=2.5.0
