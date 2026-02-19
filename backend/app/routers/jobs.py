@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Annotated
 
@@ -6,6 +7,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user_id
 from app.db import get_supabase_admin
 from app.models.job import JobFeedback, JobListResponse, JobRead
+
+
+def _parse_list(val: object) -> list[str]:
+    """Parse a value that may be a list or a JSON-encoded string."""
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return parsed
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return []
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -57,11 +72,11 @@ async def list_jobs(
             source=raw.get("source", ""),
             source_url=raw.get("source_url", ""),
             apply_url=raw.get("apply_url"),
-            tags=raw.get("tags", []),
+            tags=_parse_list(raw.get("tags", [])),
             match_score=row.get("match_score"),
             match_reasoning=row.get("match_reasoning"),
-            match_keywords=row.get("match_keywords", []),
-            missing_keywords=row.get("missing_keywords", []),
+            match_keywords=_parse_list(row.get("match_keywords", [])),
+            missing_keywords=_parse_list(row.get("missing_keywords", [])),
             match_priority=row.get("match_priority", "low"),
             status=row.get("status", "new"),
             user_notes=row.get("user_notes"),
@@ -109,11 +124,11 @@ async def get_job(
         source=raw.get("source", ""),
         source_url=raw.get("source_url", ""),
         apply_url=raw.get("apply_url"),
-        tags=raw.get("tags", []),
+        tags=_parse_list(raw.get("tags", [])),
         match_score=row.get("match_score"),
         match_reasoning=row.get("match_reasoning"),
-        match_keywords=row.get("match_keywords", []),
-        missing_keywords=row.get("missing_keywords", []),
+        match_keywords=_parse_list(row.get("match_keywords", [])),
+        missing_keywords=_parse_list(row.get("missing_keywords", [])),
         match_priority=row.get("match_priority", "low"),
         status=row.get("status", "new"),
         user_notes=row.get("user_notes"),

@@ -2,6 +2,7 @@ import logging
 from typing import Annotated
 
 import jwt
+from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -10,6 +11,16 @@ from app.config import Settings, get_settings
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
+
+_jwk_client: PyJWKClient | None = None
+
+
+def _get_jwk_client(settings: Settings) -> PyJWKClient:
+    global _jwk_client
+    if _jwk_client is None:
+        jwks_url = f"{settings.supabase_url}/auth/v1/.well-known/jwks.json"
+        _jwk_client = PyJWKClient(jwks_url, headers={"apikey": settings.supabase_anon_key})
+    return _jwk_client
 
 
 def verify_supabase_token(
@@ -22,10 +33,13 @@ def verify_supabase_token(
     """
     token = credentials.credentials
     try:
+        # Get signing key from JWKS endpoint
+        jwk_client = _get_jwk_client(settings)
+        signing_key = jwk_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256", "HS256"],
             audience="authenticated",
         )
         return payload

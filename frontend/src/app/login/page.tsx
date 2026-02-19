@@ -1,13 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"password" | "magic">("password");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const router = useRouter();
   const supabase = createClient();
+
+  async function handlePasswordLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      router.push("/dashboard");
+    }
+    setLoading(false);
+  }
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();
@@ -66,24 +88,66 @@ export default function LoginPage() {
           <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
         </div>
 
-        {/* Magic link */}
-        <form onSubmit={handleMagicLink} className="space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Send magic link"}
-          </button>
-        </form>
+        {/* Email/Password login */}
+        {mode === "password" ? (
+          <form onSubmit={handlePasswordLogin} className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Signing in..." : "Sign in"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("magic")}
+              className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Use magic link instead
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleMagicLink} className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Sending..." : "Send magic link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("password")}
+              className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Use password instead
+            </button>
+          </form>
+        )}
 
         {message && (
           <p className={`text-center text-sm ${message.includes("Check") ? "text-green-600" : "text-red-600"}`}>
