@@ -34,7 +34,7 @@ services:
     dockerfilePath: ./worker/Dockerfile
     dockerContext: .
     region: frankfurt
-    plan: free
+    plan: starter
     envVars:
       - key: SUPABASE_URL
         sync: false
