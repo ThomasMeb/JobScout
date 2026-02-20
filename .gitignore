@@ -9,3 +9,6 @@ data/
 dist/
 build/
 .ruff_cache/
+jobscout.db
+supabase/.temp/
+CLAUDE.md

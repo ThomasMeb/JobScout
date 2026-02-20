@@ -20,7 +20,17 @@ from job_agent.storage import log_llm_usage
 
 logger = logging.getLogger(__name__)
 
-TAILORING_PROMPT = """Tu es un expert en recrutement ML/Data Science. Tu adaptes un CV pour une offre specifique.
+TAILORING_PROMPT = """Tu es un expert en recrutement tech specialise en ML/Data Science avec 15 ans d'experience en optimisation ATS.
+
+## ETAPE 1 — EXTRACTION DES MOTS-CLES DE L'OFFRE
+
+Avant d'adapter le CV, identifie mentalement :
+- Les competences techniques explicitement demandees (langages, frameworks, outils)
+- Les competences transversales (leadership, communication, agile...)
+- Les termes recurrents dans la description (utilises 2+ fois = prioritaires)
+- Le niveau d'experience attendu et le ton de l'offre
+
+## CONTEXTE
 
 CV MASTER DU CANDIDAT :
 {cv_master}
@@ -32,7 +42,7 @@ Localisation : {location}
 Description :
 {description}
 
-INSTRUCTIONS STRICTES :
+## REGLES STRICTES
 
 REGLE N°1 — ORDRE CHRONOLOGIQUE DECROISSANT (ABSOLUE, NON NEGOCIABLE) :
 Les experiences DOIVENT etre triees par date de debut, de la plus recente a la plus ancienne.
@@ -40,20 +50,28 @@ Exemple correct : 2025, 2024, 2024, 2023, 2023, 2023.
 Exemple INCORRECT : 2025, 2023, 2024 (desordre = INTERDIT).
 NE JAMAIS reordonner par pertinence. La pertinence se gere dans le profil et les skills, PAS dans l'ordre des experiences.
 
-AUTRES REGLES :
-- Adapte le profil/resume et les bullets pour coller a l'offre
-- Integre les keywords de l'offre dans les descriptions d'experience
-- Le projet "Alla2" doit etre nomme "Grada" (prediction BTC, vault DeFi sur Polygon)
+REGLE N°2 — OPTIMISATION ATS :
+- Integre les mots-cles extraits a l'etape 1 dans le profile_text ET dans les bullets d'experience
+- Utilise les termes EXACTS de l'offre (pas de synonymes approximatifs)
+- Place les competences les plus critiques dans les premieres lignes du profil
+- Dans la section skills, priorise les categories qui matchent l'offre
+
+REGLE N°3 — INTEGRITE :
 - NE JAMAIS inventer d'experience, de competence ou de certification
 - NE JAMAIS mentir sur les dates ou les entreprises
+- Le projet "Alla2" doit etre nomme "Grada" (prediction BTC, vault DeFi sur Polygon)
 - Tu peux reformuler les bullets et omettre des experiences peu pertinentes, mais JAMAIS changer l'ordre chronologique des experiences conservees
 
-Reponds en JSON strict (pas de markdown) :
+REGLE N°4 — LANGUE :
+- Redige le CV en {language}
+- Utilise les accents corrects (experience, competences, etc.)
+
+Reponds en JSON strict (pas de markdown, pas de commentaires) :
 {{
   "full_name": "...",
   "contact_line": "ville | tel | email",
   "links_line": "linkedin.com/in/thomasmebarki | github.com/ThomasMeb",
-  "profile_text": "resume adapte en 3-4 lignes",
+  "profile_text": "resume adapte en 3-4 lignes integrant les mots-cles de l'offre",
   "skills": [
     {{"category": "Machine Learning", "items": "Scikit-learn, XGBoost, ..."}},
     ...
@@ -64,14 +82,7 @@ Reponds en JSON strict (pas de markdown) :
       "company": "entreprise",
       "dates": "Aout 2025 - Present",
       "description": "description du poste en 1 ligne",
-      "bullets": ["bullet 1", "bullet 2", "bullet 3"]
-    }},
-    {{
-      "title": "...",
-      "company": "...",
-      "dates": "Juin 2024 - Septembre 2024",
-      "description": "...",
-      "bullets": ["..."]
+      "bullets": ["bullet 1 avec keyword de l'offre", "bullet 2", "bullet 3"]
     }},
     ...
   ],
@@ -90,52 +101,75 @@ Reponds en JSON strict (pas de markdown) :
   ]
 }}"""
 
-COVER_LETTER_PROMPT = """Tu es un expert en candidature ML/Data Science.
-Ecris un email de candidature professionnel.
+COVER_LETTER_PROMPT = """Tu es un redacteur senior specialise en candidatures tech. Tu ecris des emails de candidature percutants et authentiques.
 
-PROFIL CANDIDAT :
+## PROFIL CANDIDAT :
 {profile_summary}
 
-CV ADAPTE (resume) :
+## CV ADAPTE (resume) :
 {cv_summary}
 
-OFFRE :
+## OFFRE :
 Titre : {job_title}
 Entreprise : {company}
 Localisation : {location}
 Description : {description}
 
-INSTRUCTIONS :
-- Format email direct (pas de lettre formelle avec adresse)
+## STRUCTURE OBLIGATOIRE (4 parties) :
+
+**1. Accroche (2-3 phrases)** : Mentionne le poste et l'entreprise. Commence par un fait concret (resultat chiffre, projet pertinent) — PAS par "Je me permets de vous contacter" ou "Passionné par".
+
+**2. Valeur ajoutée (1 paragraphe)** : Connecte 2-3 experiences SPECIFIQUES du candidat aux besoins de l'offre. Chaque experience citee doit inclure un resultat mesurable ou un livrable concret.
+
+**3. Motivation entreprise (1 paragraphe)** : Explique pourquoi CETTE entreprise en particulier (produit, mission, techno, culture). Pas de flatterie generique ("leader dans son domaine", "entreprise innovante").
+
+**4. Conclusion (2-3 phrases)** : Proposition d'echange concret (call de 15 min, entretien). Pas de formule servile.
+
+## REGLES :
+- Format email direct (pas de lettre formelle avec adresse en-tete)
 - Objet : Candidature {job_title} - {candidate_name}
-- 250-400 mots maximum
-- Ton professionnel mais pas robotique
-- Mentionne 2-3 experiences specifiques qui matchent
-- Explique la motivation pour cette entreprise en particulier
-- Termine par une proposition de call/entretien
-- Langue : {language}
+- 250-350 mots maximum
+- Ton professionnel, direct, humain — evite le langage corporatif creux
+- INTERDITS : "passionné par l'IA", "leader dans son domaine", "fort de mes X années", "vivement intéressé", "n'hésitez pas"
+- Langue : {language} — utilise les accents corrects (é, è, ê, à, ù, etc.)
 
-Reponds directement avec le texte de l'email (pas de JSON)."""
+Reponds directement avec le texte de l'email (pas de JSON, pas de markdown)."""
 
-LINKEDIN_TIPS_PROMPT = """Tu es un expert en networking LinkedIn pour le secteur ML/Data Science.
+LINKEDIN_TIPS_PROMPT = """Tu es un expert en networking LinkedIn specialise dans le recrutement tech/ML.
 
-OFFRE :
+## OFFRE :
 Titre : {job_title}
 Entreprise : {company}
 Localisation : {location}
+Description (extrait) : {description_excerpt}
 
-CANDIDAT : {candidate_name} — ML Engineer
+## CANDIDAT : {candidate_name}
+Profil resume : {candidate_profile}
 
-INSTRUCTIONS :
-Genere des conseils actionnable en markdown :
+## INSTRUCTIONS :
 
-1. **Qui contacter** : types de profils a cibler (CTO, Head of Data, etc.)
-2. **Requetes LinkedIn** : 2-3 requetes de recherche exactes a copier-coller
-3. **Template de message** : un message d'approche court (50-80 mots) personnalise
-4. **Timing** : meilleur moment pour envoyer
-5. **Elements a mettre en avant** : quels projets/experiences mentionner
+Genere un plan d'approche LinkedIn SPECIFIQUE a cette offre et cette entreprise. En markdown :
 
-Sois concis et actionnable. Langue : {language}"""
+### 1. Cibles prioritaires
+- 3 types de profils a contacter chez {company} (titre exact LinkedIn, ex: "Head of Data @{company}")
+- Pourquoi chaque profil est strategique
+
+### 2. Requetes LinkedIn (copier-coller)
+- 3 requetes de recherche pretes a coller dans la barre LinkedIn
+- Format : "{company}" "Data" OR "ML" — adapte aux titres reels de l'entreprise
+
+### 3. Message d'approche
+- Un message de 60-80 mots qui :
+  - Mentionne le poste specifique ({job_title})
+  - Cite un element concret du profil du candidat pertinent pour l'offre
+  - Pose une question ouverte (pas "est-ce que vous recrutez")
+- PAS de message generique type "Je suis tres interesse par votre entreprise"
+
+### 4. Timing et strategie
+- Meilleur moment pour envoyer
+- Action de suivi si pas de reponse (delai, message)
+
+Langue : {language}"""
 
 
 async def prepare_candidature(
@@ -165,14 +199,19 @@ async def prepare_candidature(
     cv_master = load_cv(language)
     description = (job.get("description") or "")[:4000]
 
+    lang_label = "francais" if language == "fr" else "anglais"
+
     tailoring_response, in_tok, out_tok = await call_llm(
-        "Tu adaptes des CV pour des offres d'emploi.",
+        "Tu es un expert en recrutement tech et optimisation ATS. "
+        "Tu adaptes des CV pour maximiser le taux de match avec les offres d'emploi. "
+        "Tu reponds UNIQUEMENT en JSON valide, sans markdown ni commentaire.",
         TAILORING_PROMPT.format(
             cv_master=cv_master,
             job_title=job["title"],
             company=company_name,
             location=job.get("location") or "Non precise",
             description=description,
+            language=lang_label,
         ),
         max_tokens=cfg["llm"]["max_tokens_tailoring"],
         temperature=cfg["llm"]["temperature_tailoring"],
@@ -193,7 +232,8 @@ async def prepare_candidature(
     # Step 2 — Generate PDF
     logger.info("[Candidature] Step 2/4 — Generating PDF")
     labels = _get_labels(language)
-    pdf_path = _generate_pdf(cv_data, labels, job_dir)
+    cv_template = cfg.get("candidature", {}).get("cv_template", "classic")
+    pdf_path = _generate_pdf(cv_data, labels, job_dir, template_name=cv_template)
     result["cv_pdf"] = pdf_path
 
     # Step 3 — Cover letter
@@ -202,7 +242,9 @@ async def prepare_candidature(
     cv_summary = cv_data.get("profile_text", "")
 
     cover_response, in_tok, out_tok = await call_llm(
-        "Tu rediges des emails de candidature professionnels.",
+        "Tu es un redacteur senior specialise en candidatures tech. "
+        "Tu ecris des emails de candidature concis, percutants et authentiques. "
+        "Tu evites le jargon corporatif et les formulations creuses.",
         COVER_LETTER_PROMPT.format(
             profile_summary=profile_summary,
             cv_summary=cv_summary,
@@ -211,7 +253,7 @@ async def prepare_candidature(
             location=job.get("location") or "Non precise",
             description=description[:2000],
             candidate_name=cv_data.get("full_name", "Thomas Mebarki"),
-            language="francais" if language == "fr" else "anglais",
+            language=lang_label,
         ),
         max_tokens=cfg["llm"]["max_tokens_cover_letter"],
         temperature=cfg["llm"]["temperature_tailoring"],
@@ -227,13 +269,16 @@ async def prepare_candidature(
     # Step 4 — LinkedIn tips
     logger.info("[Candidature] Step 4/4 — Generating LinkedIn tips")
     tips_response, in_tok, out_tok = await call_llm(
-        "Tu donnes des conseils de networking LinkedIn.",
+        "Tu es un expert en networking LinkedIn et strategie de candidature dans le secteur tech/ML. "
+        "Tu donnes des conseils specifiques et actionnables, jamais generiques.",
         LINKEDIN_TIPS_PROMPT.format(
             job_title=job["title"],
             company=company_name,
             location=job.get("location") or "Non precise",
+            description_excerpt=description[:800],
             candidate_name=cv_data.get("full_name", "Thomas Mebarki"),
-            language="francais" if language == "fr" else "anglais",
+            candidate_profile=cv_data.get("profile_text", "ML Engineer"),
+            language=lang_label,
         ),
         max_tokens=1024,
         temperature=0.5,
@@ -361,9 +406,14 @@ def _get_labels(language: str) -> dict:
     }
 
 
-def _generate_pdf(cv_data: dict, labels: dict, output_dir: Path) -> Path | None:
+def _generate_pdf(cv_data: dict, labels: dict, output_dir: Path, template_name: str = "classic") -> Path | None:
     """Fill the LaTeX template with cv_data and compile to PDF."""
-    template_path = TEMPLATES_DIR / "cv_template.tex"
+    template_path = TEMPLATES_DIR / f"cv_{template_name}.tex"
+    if not template_path.exists():
+        # Fallback chain: requested → classic → legacy cv_template.tex
+        template_path = TEMPLATES_DIR / "cv_classic.tex"
+        if not template_path.exists():
+            template_path = TEMPLATES_DIR / "cv_template.tex"
     if not template_path.exists():
         logger.error(f"LaTeX template not found: {template_path}")
         return None

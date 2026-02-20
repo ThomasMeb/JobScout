@@ -11,6 +11,7 @@ python-jobspy>=1.1.0
 
 # LLM
 openai>=1.40.0
+# anthropic>=0.40.0  # Optional: uncomment if using Claude models
 
 # Telegram
 python-telegram-bot>=21.0

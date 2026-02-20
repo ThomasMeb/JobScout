@@ -158,11 +158,15 @@ notion:
   sync_companies: true
 
 llm:
-  model: "deepseek-chat"
-  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"           # Options: deepseek-chat, gpt-4o, gpt-4o-mini, claude-sonnet-4-6, etc.
+  # provider: "deepseek"           # Optional: auto-detected from model name
+  base_url: "https://api.deepseek.com"  # Only needed for DeepSeek / custom endpoints
   max_tokens_scoring: 512
   max_tokens_tailoring: 4096
   max_tokens_cover_letter: 2048
   temperature_scoring: 0.2
   temperature_tailoring: 0.4
   balance_alert_threshold_usd: 2.0  # alert when DeepSeek balance drops below this
+
+candidature:
+  cv_template: "classic"           # Options: classic, modern, compact

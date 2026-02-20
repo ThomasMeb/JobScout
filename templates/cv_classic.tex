@@ -1,0 +1,63 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage{cmap}              % ATS: proper character mapping for copy-paste
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}           % ATS: Latin Modern fonts with real Unicode glyphs
+\usepackage[top=12mm,bottom=12mm,left=12mm,right=12mm]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{parskip}
+
+% ATS-friendly: no columns, no tables, no graphics
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\uppercase}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{8pt}{4pt}
+
+% Colors
+\definecolor{accent}{RGB}{40,40,40}
+
+% Hyperlink setup
+\hypersetup{colorlinks=true, urlcolor=accent, linkcolor=accent}
+
+\begin{document}
+
+% Header
+\begin{center}
+{\LARGE\bfseries <<FULL_NAME>>}\\[4pt]
+<<CONTACT_LINE>>\\[2pt]
+<<LINKS_LINE>>
+\end{center}
+
+% Profile
+\section{<<LABEL_PROFILE>>}
+<<PROFILE_TEXT>>
+
+% Skills
+\section{<<LABEL_SKILLS>>}
+<<SKILLS_BLOCK>>
+
+% Experience
+\section{<<LABEL_EXPERIENCE>>}
+<<EXPERIENCE_BLOCK>>
+
+% Education
+\section{<<LABEL_EDUCATION>>}
+<<EDUCATION_BLOCK>>
+
+% Certifications (optional)
+<<CERTIFICATIONS_SECTION>>
+
+% Projects (optional)
+<<PROJECTS_SECTION>>
+
+% Languages
+\section{<<LABEL_LANGUAGES>>}
+<<LANGUAGES_BLOCK>>
+
+\end{document}
