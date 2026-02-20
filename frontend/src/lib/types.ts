@@ -48,6 +48,17 @@ export interface JobListResponse {
   per_page: number;
 }
 
+export interface ScrapeRun {
+  id: number;
+  source: string;
+  jobs_found: number;
+  jobs_new: number;
+  status: string;
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
 export interface UserStats {
   total_jobs: number;
   new_jobs: number;

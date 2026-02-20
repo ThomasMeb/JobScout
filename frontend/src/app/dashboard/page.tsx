@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import JobTable from "@/components/JobTable";
 import StatsBar from "@/components/StatsBar";
+import WorkerStatus from "@/components/WorkerStatus";
 import { getJobs, getProfile, getStats } from "@/lib/api";
 import type { Job, JobListResponse, Profile, UserStats } from "@/lib/types";
 
@@ -79,6 +80,7 @@ export default function DashboardPage() {
 
         <div className="mx-auto max-w-7xl space-y-6 px-6 py-6">
           {stats && <StatsBar stats={stats} />}
+          <WorkerStatus />
 
           {/* Filters */}
           <div className="flex flex-wrap gap-3">

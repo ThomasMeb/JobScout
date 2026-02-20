@@ -60,3 +60,7 @@ export const updateJobFeedback = (id: number, status: string, notes?: string) =>
 
 // Stats
 export const getStats = () => fetchAPI("/api/stats/");
+
+// Scrape runs
+export const getScrapeRuns = (limit = 10) =>
+  fetchAPI(`/api/scrape-runs/?limit=${limit}`);

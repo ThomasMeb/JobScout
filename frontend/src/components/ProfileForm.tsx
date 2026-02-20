@@ -20,6 +20,9 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     min_salary: profile.min_salary || "",
     bonus_keywords: (profile.bonus_keywords || []).join(", "),
     penalty_keywords: (profile.penalty_keywords || []).join(", "),
+    notification_email: profile.notification_email || "",
+    min_score_notify: profile.min_score_notify ?? 70,
+    monthly_budget_usd: profile.monthly_budget_usd ?? 5,
   });
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +45,9 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         min_salary: form.min_salary ? Number(form.min_salary) : null,
         bonus_keywords: parseList(form.bonus_keywords),
         penalty_keywords: parseList(form.penalty_keywords),
+        notification_email: form.notification_email || null,
+        min_score_notify: Number(form.min_score_notify),
+        monthly_budget_usd: Number(form.monthly_budget_usd),
         ...(mode === "onboarding" ? { onboarding_completed: true } : {}),
       });
     } finally {
@@ -156,6 +162,54 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           placeholder="Java, .NET, 10+ years, PhD required"
         />
         <p className="mt-1 text-xs text-gray-500">Jobs with these keywords get a score penalty.</p>
+      </div>
+    </div>,
+
+    // Step 4: Notifications & Budget
+    <div key="notifications" className="space-y-4">
+      <h2 className="text-xl font-semibold">Notifications & budget</h2>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Notification email</label>
+        <input
+          type="email"
+          value={form.notification_email}
+          onChange={(e) => setForm({ ...form, notification_email: e.target.value })}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          placeholder="you@example.com"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Receive email digests when new high-scoring jobs are found. Leave empty to disable.
+        </p>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Minimum score for notifications</label>
+        <input
+          type="number"
+          value={form.min_score_notify}
+          onChange={(e) => setForm({ ...form, min_score_notify: Number(e.target.value) })}
+          min={0}
+          max={100}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          placeholder="70"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Only jobs scoring above this threshold will be included in email digests.
+        </p>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Monthly AI budget (USD)</label>
+        <input
+          type="number"
+          value={form.monthly_budget_usd}
+          onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })}
+          min={0}
+          step={0.5}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          placeholder="5.00"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Monthly limit for AI job scoring. Scoring pauses when the budget is reached. Default: $5.
+        </p>
       </div>
     </div>,
   ];
