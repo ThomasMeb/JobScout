@@ -64,4 +64,4 @@ services:
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
       - key: NEXT_PUBLIC_API_URL
-        value: https://jobscout-api.onrender.com
+        value: https://jobscout-api-ips4.onrender.com
