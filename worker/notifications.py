@@ -1,8 +1,4 @@
-"""Email notifications for scored jobs.
-
-Sends a digest email to users who have new high-scoring jobs
-since their last notification. Uses Resend API.
-"""
+"""Notifications for scored jobs — email (Resend) and Telegram."""
 import logging
 from datetime import datetime, timezone
 
@@ -14,35 +10,42 @@ from worker.db import get_supabase
 logger = logging.getLogger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
+TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 async def send_notifications():
-    """Send email digests to users with new unnotified high-score jobs."""
+    """Send digests to users with new unnotified high-score jobs (email + Telegram)."""
     settings = get_settings()
-    if not settings.resend_api_key:
-        logger.info("No RESEND_API_KEY configured, skipping email notifications")
+
+    has_email = bool(settings.resend_api_key)
+    has_telegram = bool(settings.telegram_bot_token)
+
+    if not has_email and not has_telegram:
+        logger.info("No notification channels configured, skipping")
         return
 
     sb = get_supabase()
 
-    # Get users with email notifications enabled
+    # Get users with any notification channel enabled
     profiles = (
         sb.table("profiles")
-        .select("id, name, notification_email, min_score_notify")
+        .select("id, name, notification_email, telegram_chat_id, min_score_notify")
         .eq("onboarding_completed", True)
-        .not_.is_("notification_email", "null")
         .execute()
     )
 
     if not profiles.data:
         return
 
-    total_sent = 0
+    total_email = 0
+    total_telegram = 0
 
     for user in profiles.data:
         user_id = user["id"]
         email = user.get("notification_email")
-        if not email:
+        chat_id = user.get("telegram_chat_id")
+
+        if not email and not chat_id:
             continue
 
         min_score = user.get("min_score_notify") or 70
@@ -63,32 +66,33 @@ async def send_notifications():
         if not jobs:
             continue
 
-        # Build email
         name = user.get("name") or "there"
-        html = _build_digest_html(name, jobs)
-        subject = f"JobScout: {len(jobs)} new job{'s' if len(jobs) > 1 else ''} matching your profile"
+        sent = False
 
-        # Send via Resend
-        sent = await _send_email(
-            settings.resend_api_key,
-            settings.notification_from_email,
-            email,
-            subject,
-            html,
-        )
+        # Email
+        if email and has_email:
+            html = _build_digest_html(name, jobs)
+            subject = f"JobScout: {len(jobs)} new job{'s' if len(jobs) > 1 else ''} matching your profile"
+            if await _send_email(settings.resend_api_key, settings.notification_from_email, email, subject, html):
+                total_email += 1
+                sent = True
+
+        # Telegram
+        if chat_id and has_telegram:
+            text = _build_telegram_message(name, jobs)
+            if await _send_telegram(settings.telegram_bot_token, chat_id, text):
+                total_telegram += 1
+                sent = True
 
         if sent:
-            # Mark as notified
             job_ids = [j["id"] for j in jobs]
             now = datetime.now(timezone.utc).isoformat()
             for jid in job_ids:
                 sb.table("user_jobs").update({"notified_at": now}).eq("id", jid).execute()
+            logger.info(f"Notified user {user_id[:8]}...: {len(jobs)} jobs")
 
-            total_sent += 1
-            logger.info(f"Sent digest to {email}: {len(jobs)} jobs")
-
-    if total_sent:
-        logger.info(f"Email notifications: sent {total_sent} digests")
+    if total_email or total_telegram:
+        logger.info(f"Notifications sent: {total_email} emails, {total_telegram} telegram")
 
 
 def _build_digest_html(name: str, jobs: list[dict]) -> str:
@@ -138,6 +142,49 @@ def _build_digest_html(name: str, jobs: list[dict]) -> str:
         — JobScout | <a href="#" style="color:#6b7280">Unsubscribe</a>
       </p>
     </div>"""
+
+
+def _build_telegram_message(name: str, jobs: list[dict]) -> str:
+    """Build a Telegram digest message with Markdown."""
+    lines = [f"*Hi {name}, {len(jobs)} new job{'s' if len(jobs) > 1 else ''}:*\n"]
+    for job in jobs[:10]:
+        raw = job.get("raw_jobs", {})
+        score = job.get("match_score", 0)
+        title = raw.get("title", "N/A")
+        company = raw.get("company", "")
+        url = raw.get("source_url", "")
+        priority = job.get("match_priority", "low")
+        emoji = {"high": "🟢", "medium": "🟡", "low": "⚪"}.get(priority, "⚪")
+        link = f"[{title}]({url})" if url else title
+        lines.append(f"{emoji} *{score:.0f}* — {link}\n_{company}_")
+
+    if len(jobs) > 10:
+        lines.append(f"\n_...and {len(jobs) - 10} more_")
+
+    return "\n".join(lines)
+
+
+async def _send_telegram(bot_token: str, chat_id: str, text: str) -> bool:
+    """Send message via Telegram Bot API."""
+    url = TELEGRAM_API_URL.format(token=bot_token)
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            resp = await client.post(
+                url,
+                json={
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "Markdown",
+                    "disable_web_page_preview": True,
+                },
+            )
+            if resp.status_code == 200:
+                return True
+            logger.error(f"Telegram API error {resp.status_code}: {resp.text}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to send Telegram to {chat_id}: {e}")
+            return False
 
 
 async def _send_email(api_key: str, from_email: str, to: str, subject: str, html: str) -> bool:

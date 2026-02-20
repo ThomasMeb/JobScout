@@ -10,3 +10,13 @@ class UserStats(BaseModel):
     avg_score: float | None = None
     monthly_cost_usd: float = 0.0
     budget_remaining_usd: float = 0.0
+
+
+class DailyCount(BaseModel):
+    date: str
+    count: int
+
+
+class ScoreDistribution(BaseModel):
+    score_buckets: dict[str, int] = {}
+    daily_jobs: list[DailyCount] = []

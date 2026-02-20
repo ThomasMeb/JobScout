@@ -21,6 +21,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     bonus_keywords: (profile.bonus_keywords || []).join(", "),
     penalty_keywords: (profile.penalty_keywords || []).join(", "),
     notification_email: profile.notification_email || "",
+    telegram_chat_id: profile.telegram_chat_id || "",
     min_score_notify: profile.min_score_notify ?? 70,
     monthly_budget_usd: profile.monthly_budget_usd ?? 5,
   });
@@ -46,6 +47,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         bonus_keywords: parseList(form.bonus_keywords),
         penalty_keywords: parseList(form.penalty_keywords),
         notification_email: form.notification_email || null,
+        telegram_chat_id: form.telegram_chat_id || null,
         min_score_notify: Number(form.min_score_notify),
         monthly_budget_usd: Number(form.monthly_budget_usd),
         ...(mode === "onboarding" ? { onboarding_completed: true } : {}),
@@ -179,6 +181,19 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         />
         <p className="mt-1 text-xs text-gray-500">
           Receive email digests when new high-scoring jobs are found. Leave empty to disable.
+        </p>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Telegram Chat ID</label>
+        <input
+          type="text"
+          value={form.telegram_chat_id}
+          onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          placeholder="123456789"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Get Telegram notifications. Message @userinfobot to find your Chat ID. Leave empty to disable.
         </p>
       </div>
       <div>

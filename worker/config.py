@@ -24,6 +24,9 @@ class WorkerSettings(BaseSettings):
     resend_api_key: str = ""
     notification_from_email: str = "JobScout <noreply@jobscout.app>"
 
+    # Telegram notifications
+    telegram_bot_token: str = ""
+
     # Worker
     cycle_interval_hours: int = 4
     scoring_max_tokens: int = 512

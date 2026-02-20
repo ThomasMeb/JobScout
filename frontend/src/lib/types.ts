@@ -59,6 +59,16 @@ export interface ScrapeRun {
   finished_at: string | null;
 }
 
+export interface DailyCount {
+  date: string;
+  count: number;
+}
+
+export interface ChartData {
+  score_buckets: Record<string, number>;
+  daily_jobs: DailyCount[];
+}
+
 export interface UserStats {
   total_jobs: number;
   new_jobs: number;

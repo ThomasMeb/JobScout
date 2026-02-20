@@ -4,6 +4,7 @@ Architecture:
 - scrape_global(): union all active user queries, scrape into raw_jobs (shared pool)
 - score_per_user(): for each active user, score unscored jobs with their cv_text
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -95,24 +96,35 @@ async def scrape_global():
         logger.info(f"Scraping {source_key}...")
         run_id = _log_scrape_start(sb, source_key, queries)
 
-        try:
-            raw_jobs: list[RawJob] = await scraper.scrape(queries, locations, source_cfg)
-            found = len(raw_jobs)
-            new = 0
+        raw_jobs = None
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                raw_jobs = await scraper.scrape(queries, locations, source_cfg)
+                break
+            except Exception as e:
+                if attempt < max_retries:
+                    wait = 5 * (attempt + 1)
+                    logger.warning(f"Scraper {source_key} attempt {attempt + 1} failed: {e}, retrying in {wait}s")
+                    await asyncio.sleep(wait)
+                else:
+                    logger.error(f"Scraper {source_key} failed after {max_retries + 1} attempts: {e}")
+                    _log_scrape_finish(sb, run_id, 0, 0, "error", str(e))
 
-            for rj in raw_jobs:
-                inserted = _upsert_raw_job(sb, rj)
-                if inserted:
-                    new += 1
+        if raw_jobs is None:
+            continue
 
-            _log_scrape_finish(sb, run_id, found, new, "success")
-            total_found += found
-            total_new += new
-            logger.info(f"  {source_key}: {found} found, {new} new")
+        found = len(raw_jobs)
+        new = 0
+        for rj in raw_jobs:
+            inserted = _upsert_raw_job(sb, rj)
+            if inserted:
+                new += 1
 
-        except Exception as e:
-            logger.error(f"Scraper {source_key} failed: {e}")
-            _log_scrape_finish(sb, run_id, 0, 0, "error", str(e))
+        _log_scrape_finish(sb, run_id, found, new, "success")
+        total_found += found
+        total_new += new
+        logger.info(f"  {source_key}: {found} found, {new} new")
 
     logger.info(f"Scrape complete: {total_found} found, {total_new} new")
 

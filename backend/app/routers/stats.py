@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends
 
 from app.auth import get_current_user_id
 from app.db import get_supabase_admin
-from app.models.stats import UserStats
+from app.models.stats import ScoreDistribution, UserStats
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/stats", tags=["stats"])
@@ -65,4 +66,47 @@ async def get_stats(
         avg_score=round(avg_score, 1) if avg_score else None,
         monthly_cost_usd=round(monthly_cost, 4),
         budget_remaining_usd=round(max(0, budget - monthly_cost), 4),
+    )
+
+
+@router.get("/charts", response_model=ScoreDistribution)
+async def get_chart_data(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """Get score distribution and daily job counts for charts."""
+    sb = get_supabase_admin()
+
+    rows = (
+        sb.table("user_jobs")
+        .select("match_score, scored_at")
+        .eq("user_id", user_id)
+        .not_.is_("match_score", "null")
+        .order("scored_at", desc=True)
+        .limit(500)
+        .execute()
+    )
+
+    # Score distribution in buckets of 10
+    buckets: dict[str, int] = {}
+    for label_start in range(0, 100, 10):
+        buckets[f"{label_start}-{label_start + 9}"] = 0
+
+    daily_counts: Counter[str] = Counter()
+
+    for row in rows.data:
+        score = row.get("match_score", 0)
+        bucket_idx = min(int(score // 10), 9)
+        label = f"{bucket_idx * 10}-{bucket_idx * 10 + 9}"
+        buckets[label] += 1
+
+        scored_at = row.get("scored_at")
+        if scored_at:
+            day = scored_at[:10]
+            daily_counts[day] += 1
+
+    sorted_days = sorted(daily_counts.items())[-30:]
+
+    return ScoreDistribution(
+        score_buckets=buckets,
+        daily_jobs=[{"date": d, "count": c} for d, c in sorted_days],
     )
