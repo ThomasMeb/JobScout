@@ -18,21 +18,26 @@ PRICING = {
     "deepseek-chat": {"input": 0.28, "output": 1.10, "cache_hit": 0.028},
 }
 
-SCORING_SYSTEM_PROMPT = """Tu es un expert en recrutement ML/Data Science. Tu évalues la compatibilité entre un profil candidat et une offre d'emploi.
+SCORING_SYSTEM_PROMPT = """Tu es un expert en recrutement tech. Tu évalues la compatibilité entre un profil candidat et une offre d'emploi.
 
 PROFIL CANDIDAT :
 {profile}
 
+PRÉFÉRENCES DU CANDIDAT :
+- Localisations souhaitées : {locations}
+- Remote accepté : {remote}
+- Salaire minimum souhaité : {min_salary}
+- Mots-clés bonus (valoriser) : {bonus_kw}
+- Mots-clés pénalité (dévaloriser) : {penalty_kw}
+
 INSTRUCTIONS :
 Évalue l'offre selon ces 5 critères. Sois précis, utilise toute l'échelle (pas uniquement des multiples de 5).
 
-1. skills (0-30) : Match entre les compétences techniques demandées et le profil (langages, frameworks, outils)
+1. skills (0-30) : Match entre les compétences techniques demandées et le profil (langages, frameworks, outils). Valorise les mots-clés bonus, pénalise les mots-clés pénalité.
 2. seniority (0-25) : Adéquation du niveau d'expérience demandé vs le profil candidat
-3. location (0-20) : Compatibilité lieu de travail / remote policy avec les préférences
-4. domain (0-15) : Qualité de la mission et orientation produit. Le candidat est orienté produit et secteur-agnostique : le secteur d'activité (fintech, retail, santé, industrie…) n'a AUCUNE importance. Évalue uniquement : la mission est-elle intéressante ? Y a-t-il un vrai impact produit/business ? Le rôle est-il orienté construction/amélioration de produit plutôt que maintenance pure ?
-5. compensation (0-10) : Cohérence de la rémunération avec les attentes (si non précisé, mettre 5)
-
-IMPORTANT : Le candidat a travaillé dans l'insurtech et l'e-commerce par opportunité, PAS par préférence sectorielle. Ne pas favoriser ces secteurs. Tous les secteurs se valent tant que la mission et le rôle produit sont intéressants.
+3. location (0-20) : Compatibilité lieu de travail / remote policy avec les préférences de localisation. Si remote accepté et l'offre est remote, score élevé.
+4. domain (0-15) : Qualité de la mission, impact produit/business, intérêt du rôle. Le secteur d'activité n'a pas d'importance en soi — seule la mission compte.
+5. compensation (0-10) : Cohérence de la rémunération avec le salaire minimum souhaité (si non précisé dans l'offre, mettre 5)
 
 Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaires) :
 {{
@@ -46,6 +51,26 @@ Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaire
   "reasoning": "<explication en 1-2 phrases>",
   "language": "<fr|en>"
 }}"""
+
+
+def build_system_prompt(user: dict) -> str:
+    """Build a scoring system prompt from user profile data."""
+    cv_text = user.get("cv_text") or user.get("profile_summary") or ""
+    locations = ", ".join(user.get("search_locations") or []) or "Non précisé"
+    remote = "Oui" if user.get("remote_accepted", True) else "Non"
+    min_salary = user.get("min_salary")
+    min_salary_str = f"{min_salary} EUR/an" if min_salary else "Non précisé"
+    bonus_kw = ", ".join(user.get("bonus_keywords") or []) or "Aucun"
+    penalty_kw = ", ".join(user.get("penalty_keywords") or []) or "Aucun"
+
+    return SCORING_SYSTEM_PROMPT.format(
+        profile=cv_text,
+        locations=locations,
+        remote=remote,
+        min_salary=min_salary_str,
+        bonus_kw=bonus_kw,
+        penalty_kw=penalty_kw,
+    )
 
 
 def _get_llm_client() -> AsyncOpenAI:

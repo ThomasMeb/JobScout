@@ -51,14 +51,14 @@ async def list_jobs(
         query = query.gte("match_score", min_score)
     if status:
         query = query.eq("status", status)
+    if source:
+        query = query.eq("raw_jobs.source", source)
 
     result = query.range(offset, offset + per_page - 1).execute()
 
     jobs = []
     for row in result.data:
         raw = row.get("raw_jobs", {})
-        if source and raw.get("source") != source:
-            continue
         jobs.append(JobRead(
             id=row["id"],
             raw_job_id=row["raw_job_id"],

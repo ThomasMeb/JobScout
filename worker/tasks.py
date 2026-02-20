@@ -19,7 +19,7 @@ from job_agent.scrapers.wttj import WTTJScraper
 from worker.config import SCRAPER_CONFIGS, get_settings
 from worker.db import get_supabase
 from worker.scoring import (
-    SCORING_SYSTEM_PROMPT,
+    build_system_prompt,
     call_llm,
     estimate_cost,
     format_salary,
@@ -190,7 +190,8 @@ async def score_per_user():
     profiles = (
         sb.table("profiles")
         .select("id, cv_text, profile_summary, search_queries, search_locations, "
-                "bonus_keywords, penalty_keywords, monthly_budget_usd")
+                "bonus_keywords, penalty_keywords, remote_accepted, min_salary, "
+                "monthly_budget_usd")
         .eq("onboarding_completed", True)
         .execute()
     )
@@ -237,8 +238,8 @@ async def score_per_user():
 
         logger.info(f"User {user_id[:8]}...: scoring {len(jobs)} jobs")
 
-        # Build system prompt with user's profile
-        system_prompt = SCORING_SYSTEM_PROMPT.format(profile=cv_text)
+        # Build system prompt with user's full profile and preferences
+        system_prompt = build_system_prompt(user)
 
         scored_count = 0
         for job in jobs:
