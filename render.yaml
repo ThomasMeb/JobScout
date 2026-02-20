@@ -1,7 +1,7 @@
 # JobScout SaaS — Render Blueprint
 # Deploy: https://render.com/deploy?repo=...
 
-# Shared secrets — create "jobscout-shared" env group on Render with:
+# Shared secrets — uses "JobScout" env group on Render with:
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DEEPSEEK_API_KEY
 
 services:
@@ -15,7 +15,7 @@ services:
     plan: free
     healthCheckPath: /api/health
     envVars:
-      - fromGroup: jobscout-shared
+      - fromGroup: JobScout
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_JWT_SECRET
@@ -34,7 +34,7 @@ services:
     region: frankfurt
     plan: starter
     envVars:
-      - fromGroup: jobscout-shared
+      - fromGroup: JobScout
       - key: DEEPSEEK_BASE_URL
         value: https://api.deepseek.com
       - key: ADZUNA_APP_ID
