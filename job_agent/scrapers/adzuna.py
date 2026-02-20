@@ -1,9 +1,12 @@
 import logging
+import os
 
 import httpx
 
-from job_agent.config import ADZUNA_APP_ID, ADZUNA_APP_KEY
 from job_agent.scrapers.base import BaseScraper, RawJob
+
+ADZUNA_APP_ID = os.environ.get("ADZUNA_APP_ID", "")
+ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")
 
 logger = logging.getLogger(__name__)
 
