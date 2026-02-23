@@ -33,4 +33,14 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    missing = []
+    if not s.supabase_url:
+        missing.append("SUPABASE_URL")
+    if not s.supabase_anon_key:
+        missing.append("SUPABASE_ANON_KEY")
+    if not s.supabase_service_role_key:
+        missing.append("SUPABASE_SERVICE_ROLE_KEY")
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+    return s

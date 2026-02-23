@@ -44,6 +44,16 @@ async def main():
     interval = settings.cycle_interval_hours
     logger.info(f"Worker starting — cycle every {interval}h")
 
+    # Startup health check: verify Supabase connection
+    try:
+        from worker.db import get_supabase
+        sb = get_supabase()
+        sb.table("profiles").select("id").limit(1).execute()
+        logger.info("Supabase connection OK")
+    except Exception as e:
+        logger.critical(f"Supabase connection failed at startup: {e}")
+        raise SystemExit(1)
+
     # Start Telegram bot in background (if configured)
     if settings.telegram_bot_token:
         try:

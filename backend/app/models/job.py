@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -28,7 +30,7 @@ class JobRead(BaseModel):
 
 
 class JobFeedback(BaseModel):
-    status: str  # interested, rejected, applied
+    status: Literal["interested", "rejected", "applied", "new"]
     user_notes: str | None = None
 
 

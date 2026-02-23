@@ -31,8 +31,8 @@ async def list_jobs(
     user_id: Annotated[str, Depends(get_current_user_id)],
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    min_score: float | None = None,
-    status: str | None = None,
+    min_score: float | None = Query(default=None, ge=0, le=100),
+    status: str | None = Query(default=None, pattern="^(new|interested|rejected|applied)$"),
     source: str | None = None,
 ):
     """List scored jobs for the current user with pagination and filters."""
@@ -144,13 +144,6 @@ async def update_feedback(
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     """Update job feedback (interested/rejected/applied)."""
-    valid_statuses = {"interested", "rejected", "applied", "new"}
-    if feedback.status not in valid_statuses:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Must be one of: {valid_statuses}",
-        )
-
     sb = get_supabase_admin()
     data = {"status": feedback.status}
     if feedback.user_notes is not None:
