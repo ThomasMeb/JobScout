@@ -23,8 +23,13 @@ class JobSpyScraper(BaseScraper):
         jobs = []
         seen_urls = set()
 
+        first_request = True
         for query in queries:
             for location in locations:
+                if not first_request:
+                    await asyncio.sleep(5)
+                first_request = False
+
                 try:
                     # jobspy is synchronous — run in executor
                     loop = asyncio.get_event_loop()
@@ -48,9 +53,15 @@ class JobSpyScraper(BaseScraper):
                             continue
                         seen_urls.add(url)
 
+                        title = str(row.get("title", ""))
+                        company = str(row.get("company_name", ""))
+                        if not title or not company:
+                            logger.debug(f"JobSpy: skipping job with missing title or company: {url}")
+                            continue
+
                         jobs.append(RawJob(
-                            title=str(row.get("title", "")),
-                            company=str(row.get("company_name", "Unknown")),
+                            title=title,
+                            company=company,
                             location=str(row.get("location", location)),
                             remote_type=_parse_remote(row),
                             salary_min=_safe_int(row.get("min_amount")),

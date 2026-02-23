@@ -3,7 +3,7 @@ import logging
 
 import httpx
 
-from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.base import BaseScraper, RawJob, retry_request
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,8 @@ class WTTJScraper(BaseScraper):
         """Extract the Algolia search-only API key from WTTJ frontend."""
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             try:
-                resp = await client.get(
+                resp = await retry_request(
+                    client, "GET",
                     "https://www.welcometothejungle.com/fr/jobs",
                     headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
                 )
@@ -71,7 +72,8 @@ class WTTJScraper(BaseScraper):
             for query in queries:
                 for location in locations:
                     try:
-                        resp = await client.post(
+                        resp = await retry_request(
+                            client, "POST",
                             ALGOLIA_URL,
                             headers={
                                 "x-algolia-application-id": ALGOLIA_APP_ID,
@@ -94,7 +96,6 @@ class WTTJScraper(BaseScraper):
                                 ]
                             },
                         )
-                        resp.raise_for_status()
                         data = resp.json()
                     except Exception as e:
                         logger.error(f"WTTJ Algolia error for '{query}': {e}")
@@ -109,7 +110,12 @@ class WTTJScraper(BaseScraper):
                             continue
                         seen_slugs.add(slug)
 
-                        company_name = hit.get("organization", {}).get("name", "Unknown")
+                        title = hit.get("name", "")
+                        company_name = hit.get("organization", {}).get("name", "")
+                        if not title or not company_name:
+                            logger.debug(f"WTTJ: skipping job with missing title or company: {slug}")
+                            continue
+
                         offices = hit.get("offices", [])
                         if offices and isinstance(offices, list):
                             office = offices[0]
@@ -120,7 +126,7 @@ class WTTJScraper(BaseScraper):
                             location_str = ""
 
                         jobs.append(RawJob(
-                            title=hit.get("name", ""),
+                            title=title,
                             company=company_name,
                             location=location_str,
                             remote_type=_parse_remote(hit),
@@ -146,7 +152,8 @@ class WTTJScraper(BaseScraper):
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             for query in queries:
                 try:
-                    await client.get(
+                    await retry_request(
+                        client, "GET",
                         "https://www.welcometothejungle.com/fr/jobs",
                         params={"query": query, "refinementList%5Bremote%5D%5B%5D": "no"},
                         headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},

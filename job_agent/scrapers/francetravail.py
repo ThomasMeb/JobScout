@@ -1,9 +1,10 @@
+import asyncio
 import logging
 from datetime import datetime
 
 import httpx
 
-from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.base import BaseScraper, RawJob, retry_request
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,15 @@ class FranceTravailScraper(BaseScraper):
         seen_ids = set()
 
         async with httpx.AsyncClient(timeout=30) as client:
+            first_request = True
             for query in queries:
+                if not first_request:
+                    await asyncio.sleep(2)
+                first_request = False
+
                 try:
-                    resp = await client.get(
+                    resp = await retry_request(
+                        client, "GET",
                         API_URL,
                         params={
                             "motsCles": query,
@@ -50,7 +57,6 @@ class FranceTravailScraper(BaseScraper):
                             "Accept": "application/json",
                         },
                     )
-                    resp.raise_for_status()
                     data = resp.json()
                 except Exception as e:
                     logger.error(f"France Travail error for '{query}': {e}")
@@ -63,11 +69,15 @@ class FranceTravailScraper(BaseScraper):
                         continue
                     seen_ids.add(offer_id)
 
+                    title = item.get("intitule", "")
+                    entreprise = item.get("entreprise", {})
+                    company = entreprise.get("nom", "")
+                    if not title or not company:
+                        logger.debug(f"France Travail: skipping job with missing title or company: {offer_id}")
+                        continue
+
                     lieu = item.get("lieuTravail", {})
                     location_str = lieu.get("libelle", "")
-
-                    entreprise = item.get("entreprise", {})
-                    company = entreprise.get("nom", "Non précisé")
 
                     salaire = item.get("salaire", {})
                     salary_min, salary_max = _parse_salary(salaire)
@@ -84,7 +94,7 @@ class FranceTravailScraper(BaseScraper):
                     competences = [c.get("libelle", "") for c in item.get("competences", [])]
 
                     jobs.append(RawJob(
-                        title=item.get("intitule", ""),
+                        title=title,
                         company=company,
                         location=location_str,
                         remote_type=_detect_remote(item),
@@ -105,7 +115,8 @@ class FranceTravailScraper(BaseScraper):
     async def _get_token(self, client_id: str, client_secret: str) -> str | None:
         async with httpx.AsyncClient(timeout=15) as client:
             try:
-                resp = await client.post(
+                resp = await retry_request(
+                    client, "POST",
                     TOKEN_URL,
                     params={"realm": "/partenaire"},
                     data={
@@ -116,7 +127,6 @@ class FranceTravailScraper(BaseScraper):
                     },
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
-                resp.raise_for_status()
                 return resp.json().get("access_token")
             except Exception as e:
                 logger.error(f"France Travail OAuth2 error: {e}")

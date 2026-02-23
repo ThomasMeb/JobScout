@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import os
 
 import httpx
 
-from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.base import BaseScraper, RawJob, retry_request
 
 ADZUNA_APP_ID = os.environ.get("ADZUNA_APP_ID", "")
 ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")
@@ -29,10 +30,16 @@ class AdzunaScraper(BaseScraper):
         seen_urls = set()
 
         async with httpx.AsyncClient(timeout=30) as client:
+            first_request = True
             for query in queries:
                 for location in locations:
+                    if not first_request:
+                        await asyncio.sleep(2)
+                    first_request = False
+
                     try:
-                        resp = await client.get(
+                        resp = await retry_request(
+                            client, "GET",
                             f"{BASE_URL}/{country}/search/1",
                             params={
                                 "app_id": ADZUNA_APP_ID,
@@ -45,7 +52,6 @@ class AdzunaScraper(BaseScraper):
                                 "content-type": "application/json",
                             },
                         )
-                        resp.raise_for_status()
                         data = resp.json()
                     except Exception as e:
                         logger.error(f"Adzuna error for '{query}' in '{location}': {e}")
@@ -57,6 +63,12 @@ class AdzunaScraper(BaseScraper):
                             continue
                         seen_urls.add(url)
 
+                        title = item.get("title", "")
+                        company = item.get("company", {}).get("display_name", "")
+                        if not title or not company:
+                            logger.debug(f"Adzuna: skipping job with missing title or company: {url}")
+                            continue
+
                         salary_min = item.get("salary_min")
                         salary_max = item.get("salary_max")
 
@@ -64,8 +76,8 @@ class AdzunaScraper(BaseScraper):
                         display_name = loc.get("display_name", "")
 
                         jobs.append(RawJob(
-                            title=item.get("title", ""),
-                            company=item.get("company", {}).get("display_name", "Unknown"),
+                            title=title,
+                            company=company,
                             location=display_name,
                             remote_type=_detect_remote(item),
                             salary_min=int(salary_min) if salary_min else None,
