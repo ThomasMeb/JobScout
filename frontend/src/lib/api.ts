@@ -58,6 +58,38 @@ export const updateJobFeedback = (id: number, status: string, notes?: string) =>
     body: JSON.stringify({ status, user_notes: notes }),
   });
 
+// Export
+export const exportJobsCSV = async (filters: JobFilters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.min_score) params.set("min_score", String(filters.min_score));
+  if (filters.status) params.set("status", filters.status);
+  const query = params.toString();
+  const path = `/api/jobs/export/csv${query ? `?${query}` : ""}`;
+
+  const { createClient } = await import("./supabase-browser");
+  const supabase = createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const headers: Record<string, string> = {};
+  if (session?.access_token) {
+    headers["Authorization"] = `Bearer ${session.access_token}`;
+  }
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const res = await fetch(`${API_URL}${path}`, { headers });
+  if (!res.ok) throw new Error("Export failed");
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "jobscout-export.csv";
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
 // Stats
 export const getStats = () => fetchAPI("/api/stats/");
 

@@ -1,8 +1,11 @@
+import csv
+import io
 import json
 import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from supabase import Client
 
 from app.auth import get_current_user_id, get_rls_supabase
@@ -161,3 +164,68 @@ async def update_feedback(
 
     # Fetch full job with raw_jobs join for response
     return await get_job(job_id, user_id, sb)
+
+
+@router.get("/export/csv")
+async def export_jobs_csv(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
+    min_score: float | None = Query(default=None, ge=0, le=100),
+    status: str | None = Query(default=None, pattern="^(new|interested|rejected|applied)$"),
+):
+    """Export all scored jobs as CSV."""
+    query = (
+        sb.table("user_jobs")
+        .select("match_score, match_priority, match_keywords, missing_keywords, "
+                "match_reasoning, status, user_notes, scored_at, "
+                "raw_jobs(title, company, location, remote_type, salary_min, "
+                "salary_max, salary_currency, source, source_url, apply_url)")
+        .eq("user_id", user_id)
+        .order("match_score", desc=True)
+        .limit(1000)
+    )
+    if min_score is not None:
+        query = query.gte("match_score", min_score)
+    if status:
+        query = query.eq("status", status)
+
+    result = query.execute()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Title", "Company", "Location", "Remote", "Score", "Priority",
+        "Status", "Source", "URL", "Apply URL",
+        "Salary Min", "Salary Max", "Currency",
+        "Match Keywords", "Missing Keywords", "Reasoning", "Notes", "Scored At",
+    ])
+
+    for row in result.data or []:
+        raw = row.get("raw_jobs") or {}
+        writer.writerow([
+            raw.get("title", ""),
+            raw.get("company", ""),
+            raw.get("location", ""),
+            raw.get("remote_type", ""),
+            row.get("match_score", ""),
+            row.get("match_priority", ""),
+            row.get("status", ""),
+            raw.get("source", ""),
+            raw.get("source_url", ""),
+            raw.get("apply_url", ""),
+            raw.get("salary_min", ""),
+            raw.get("salary_max", ""),
+            raw.get("salary_currency", ""),
+            ", ".join(_parse_list(row.get("match_keywords", []))),
+            ", ".join(_parse_list(row.get("missing_keywords", []))),
+            row.get("match_reasoning", ""),
+            row.get("user_notes", ""),
+            row.get("scored_at", ""),
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=jobscout-export.csv"},
+    )

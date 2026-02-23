@@ -7,7 +7,7 @@ import Charts from "@/components/Charts";
 import JobTable from "@/components/JobTable";
 import StatsBar from "@/components/StatsBar";
 import WorkerStatus from "@/components/WorkerStatus";
-import { getJobs, getProfile, getStats } from "@/lib/api";
+import { exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
 import type { Job, JobListResponse, Profile, UserStats } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -125,6 +125,16 @@ export default function DashboardPage() {
             <span className="self-center text-sm text-gray-500">
               {total} job{total !== 1 ? "s" : ""}
             </span>
+
+            <button
+              onClick={() => exportJobsCSV({
+                min_score: minScore || undefined,
+                status: statusFilter || undefined,
+              })}
+              className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              Export CSV
+            </button>
           </div>
 
           {loading ? (

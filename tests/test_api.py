@@ -155,3 +155,56 @@ class TestJobEndpoints:
         )
         resp = tc.patch("/api/jobs/1/feedback", json={"status": "interested"})
         assert resp.status_code == 200
+
+
+class TestExportCSV:
+    def test_export_csv_empty(self, client):
+        tc, mock_sb = client
+        (mock_sb.table.return_value
+            .select.return_value
+            .eq.return_value
+            .order.return_value
+            .limit.return_value
+            .execute.return_value) = MagicMock(data=[])
+        resp = tc.get("/api/jobs/export/csv")
+        assert resp.status_code == 200
+        assert "text/csv" in resp.headers["content-type"]
+        assert "jobscout-export.csv" in resp.headers["content-disposition"]
+        lines = resp.text.strip().split("\n")
+        assert len(lines) == 1  # header only
+
+    def test_export_csv_with_data(self, client):
+        tc, mock_sb = client
+        (mock_sb.table.return_value
+            .select.return_value
+            .eq.return_value
+            .order.return_value
+            .limit.return_value
+            .execute.return_value) = MagicMock(data=[{
+                "match_score": 80,
+                "match_priority": "high",
+                "match_keywords": '["python"]',
+                "missing_keywords": "[]",
+                "match_reasoning": "Good match",
+                "status": "new",
+                "user_notes": None,
+                "scored_at": "2026-02-23",
+                "raw_jobs": {
+                    "title": "Dev Python",
+                    "company": "Acme",
+                    "location": "Paris",
+                    "remote_type": "hybrid",
+                    "salary_min": 45000,
+                    "salary_max": 55000,
+                    "salary_currency": "EUR",
+                    "source": "wttj",
+                    "source_url": "https://example.com",
+                    "apply_url": None,
+                },
+            }])
+        resp = tc.get("/api/jobs/export/csv")
+        assert resp.status_code == 200
+        lines = resp.text.strip().split("\n")
+        assert len(lines) == 2  # header + 1 row
+        assert "Dev Python" in lines[1]
+        assert "Acme" in lines[1]
