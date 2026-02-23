@@ -1,5 +1,7 @@
 .env
-.env.saas
+.env.*
+!.env.example
+!.env.saas.example
 config.yaml
 __pycache__/
 *.pyc

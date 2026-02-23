@@ -83,8 +83,8 @@ def build_system_prompt(user: dict) -> str:
             pref_summary = generate_preference_summary(user_id)
             if pref_summary:
                 prompt += f"\n\nPRÉFÉRENCES APPRISES (feedback utilisateur) :\n{pref_summary}"
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to load feedback preferences for user {user_id}: {e}")
 
     return prompt
 

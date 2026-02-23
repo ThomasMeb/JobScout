@@ -109,7 +109,8 @@ def _get_telegram_bot():
     try:
         from worker.telegram_bot import get_bot
         return get_bot()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to get Telegram bot instance: {e}")
         return None
 
 

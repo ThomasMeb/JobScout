@@ -6,7 +6,7 @@ Adapted from legacy/job_agent/candidature.py for multi-tenant SaaS (Supabase).
 import json
 import logging
 import re
-import subprocess
+import asyncio
 import tempfile
 from pathlib import Path
 
@@ -496,10 +496,18 @@ def _generate_pdf(cv_data: dict, labels: dict, template_name: str = "classic") -
 
         try:
             for _ in range(2):
-                subprocess.run(
-                    ["pdflatex", "-interaction=nonstopmode", "-output-directory", tmpdir, str(tex_file)],
-                    capture_output=True, timeout=30,
+                proc = await asyncio.create_subprocess_exec(
+                    "pdflatex", "-interaction=nonstopmode", "-output-directory", tmpdir, str(tex_file),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                try:
+                    await asyncio.wait_for(proc.communicate(), timeout=30)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+                    logger.error("pdflatex timed out")
+                    return None
             pdf_source = Path(tmpdir) / "cv.pdf"
             if pdf_source.exists():
                 pdf_bytes = pdf_source.read_bytes()
@@ -512,9 +520,6 @@ def _generate_pdf(cv_data: dict, labels: dict, template_name: str = "classic") -
                     errors = [line for line in log_content.split("\n") if line.startswith("!")]
                     logger.error(f"pdflatex errors: {errors[:5]}")
                 return None
-        except subprocess.TimeoutExpired:
-            logger.error("pdflatex timed out")
-            return None
         except FileNotFoundError:
             logger.error("pdflatex not found — install texlive-base")
             return None

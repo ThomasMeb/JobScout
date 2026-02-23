@@ -168,7 +168,9 @@ def _log_scrape_start(sb, source: str, queries: list[str]) -> int | None:
         "queries_used": json.dumps(queries),
         "status": "running",
     }).execute()
-    return result.data[0]["id"] if result.data else None
+    if result.data and len(result.data) > 0:
+        return result.data[0]["id"]
+    return None
 
 
 def _log_scrape_finish(
@@ -315,7 +317,7 @@ Description :
         "status": "new",
     }).execute()
 
-    user_job_id = uj_result.data[0]["id"] if uj_result.data else None
+    user_job_id = uj_result.data[0]["id"] if uj_result.data and len(uj_result.data) > 0 else None
 
     # Log LLM usage
     sb.table("llm_usage").insert({
