@@ -5,8 +5,10 @@ import jwt
 from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from supabase import Client
 
 from app.config import Settings, get_settings
+from app.db import make_user_client
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +69,16 @@ def get_current_user_id(
             detail="Invalid token: no user ID",
         )
     return user_id
+
+
+def get_rls_supabase(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    _user_id: Annotated[str, Depends(get_current_user_id)],
+) -> Client:
+    """Get Supabase client with user's JWT for RLS enforcement.
+
+    Depends on get_current_user_id to ensure the token is verified
+    before creating the client. FastAPI caches the security dependency
+    so credentials are only extracted once per request.
+    """
+    return make_user_client(credentials.credentials)

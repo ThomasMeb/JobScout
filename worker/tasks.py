@@ -305,7 +305,7 @@ Description :
     result = parse_scoring_response(response_text)
     cost = estimate_cost(settings.deepseek_model, in_tokens, out_tokens)
 
-    # Insert into user_jobs
+    # Insert into user_jobs + llm_usage atomically
     uj_result = sb.table("user_jobs").insert({
         "user_id": user_id,
         "raw_job_id": job["id"],
@@ -319,16 +319,22 @@ Description :
 
     user_job_id = uj_result.data[0]["id"] if uj_result.data and len(uj_result.data) > 0 else None
 
-    # Log LLM usage
-    sb.table("llm_usage").insert({
-        "user_id": user_id,
-        "operation": "scoring",
-        "user_job_id": user_job_id,
-        "model": settings.deepseek_model,
-        "tokens_in": in_tokens,
-        "tokens_out": out_tokens,
-        "cost_usd": cost,
-    }).execute()
+    # Log LLM usage — rollback user_jobs entry on failure
+    try:
+        sb.table("llm_usage").insert({
+            "user_id": user_id,
+            "operation": "scoring",
+            "user_job_id": user_job_id,
+            "model": settings.deepseek_model,
+            "tokens_in": in_tokens,
+            "tokens_out": out_tokens,
+            "cost_usd": cost,
+        }).execute()
+    except Exception as e:
+        logger.error(f"Failed to log LLM usage for job {job['id']}, rolling back user_job: {e}")
+        if user_job_id:
+            sb.table("user_jobs").delete().eq("id", user_job_id).execute()
+        raise
 
     return cost
 

@@ -25,12 +25,13 @@ def get_supabase_anon() -> Client:
     return create_client(settings.supabase_url, settings.supabase_anon_key)
 
 
-def get_user_client(access_token: str) -> Client:
+def make_user_client(access_token: str) -> Client:
     """Create a Supabase client authenticated as a specific user.
 
     This client respects RLS policies scoped to the user.
+    Uses postgrest.auth() to set the JWT for all database queries.
     """
     settings = get_settings()
     client = create_client(settings.supabase_url, settings.supabase_anon_key)
-    client.auth.set_session(access_token, "")
+    client.postgrest.auth(access_token)
     return client

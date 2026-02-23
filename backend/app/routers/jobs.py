@@ -3,9 +3,9 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from supabase import Client
 
-from app.auth import get_current_user_id
-from app.db import get_supabase_admin
+from app.auth import get_current_user_id, get_rls_supabase
 from app.models.job import JobFeedback, JobListResponse, JobRead
 
 
@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 @router.get("/", response_model=JobListResponse)
 async def list_jobs(
     user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     min_score: float | None = Query(default=None, ge=0, le=100),
@@ -36,7 +37,6 @@ async def list_jobs(
     source: str | None = None,
 ):
     """List scored jobs for the current user with pagination and filters."""
-    sb = get_supabase_admin()
     offset = (page - 1) * per_page
 
     # Build query joining user_jobs with raw_jobs
@@ -96,9 +96,9 @@ async def list_jobs(
 async def get_job(
     job_id: int,
     user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
 ):
     """Get a single scored job detail."""
-    sb = get_supabase_admin()
     result = (
         sb.table("user_jobs")
         .select("*, raw_jobs(*)")
@@ -142,9 +142,9 @@ async def update_feedback(
     job_id: int,
     feedback: JobFeedback,
     user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
 ):
     """Update job feedback (interested/rejected/applied)."""
-    sb = get_supabase_admin()
     data = {"status": feedback.status}
     if feedback.user_notes is not None:
         data["user_notes"] = feedback.user_notes
@@ -160,4 +160,4 @@ async def update_feedback(
         raise HTTPException(status_code=404, detail="Job not found")
 
     # Fetch full job with raw_jobs join for response
-    return await get_job(job_id, user_id)
+    return await get_job(job_id, user_id, sb)

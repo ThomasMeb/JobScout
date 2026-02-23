@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from supabase import Client
 
-from app.auth import get_current_user_id
-from app.db import get_supabase_admin
+from app.auth import get_current_user_id, get_rls_supabase
 from app.models.stats import ScoreDistribution, UserStats
 
 logger = logging.getLogger(__name__)
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/api/stats", tags=["stats"])
 @router.get("/", response_model=UserStats)
 async def get_stats(
     user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
 ):
     """Get KPI stats for the current user."""
-    sb = get_supabase_admin()
 
     # Count by status
     all_jobs = (
@@ -72,9 +72,9 @@ async def get_stats(
 @router.get("/charts", response_model=ScoreDistribution)
 async def get_chart_data(
     user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
 ):
     """Get score distribution and daily job counts for charts."""
-    sb = get_supabase_admin()
 
     rows = (
         sb.table("user_jobs")
