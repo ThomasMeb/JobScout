@@ -51,6 +51,12 @@ services:
         sync: false
       - key: CYCLE_INTERVAL_HOURS
         value: "4"
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_JOBS_DB_ID
+        sync: false
+      - key: NOTION_COMPANIES_DB_ID
+        sync: false
 
   # Next.js Frontend
   - type: web

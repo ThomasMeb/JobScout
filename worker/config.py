@@ -34,6 +34,17 @@ class WorkerSettings(BaseSettings):
     max_jobs_per_user_per_cycle: int = 100
     job_lookback_days: int = 7
 
+    # Candidature
+    tailoring_max_tokens: int = 2048
+    tailoring_temperature: float = 0.3
+    cover_letter_max_tokens: int = 1024
+    cv_template: str = "classic"
+
+    # Notion
+    notion_token: str = ""
+    notion_jobs_db_id: str = ""
+    notion_companies_db_id: str = ""
+
     model_config = {"env_file": ".env.saas", "extra": "ignore"}
 
 

@@ -54,7 +54,10 @@ Réponds STRICTEMENT au format JSON suivant (pas de markdown, pas de commentaire
 
 
 def build_system_prompt(user: dict) -> str:
-    """Build a scoring system prompt from user profile data."""
+    """Build a scoring system prompt from user profile data.
+
+    Includes learned preferences from feedback loop if user has enough feedback.
+    """
     cv_text = user.get("cv_text") or user.get("profile_summary") or ""
     locations = ", ".join(user.get("search_locations") or []) or "Non précisé"
     remote = "Oui" if user.get("remote_accepted", True) else "Non"
@@ -63,7 +66,7 @@ def build_system_prompt(user: dict) -> str:
     bonus_kw = ", ".join(user.get("bonus_keywords") or []) or "Aucun"
     penalty_kw = ", ".join(user.get("penalty_keywords") or []) or "Aucun"
 
-    return SCORING_SYSTEM_PROMPT.format(
+    prompt = SCORING_SYSTEM_PROMPT.format(
         profile=cv_text,
         locations=locations,
         remote=remote,
@@ -71,6 +74,19 @@ def build_system_prompt(user: dict) -> str:
         bonus_kw=bonus_kw,
         penalty_kw=penalty_kw,
     )
+
+    # Inject learned preferences from feedback loop
+    try:
+        from worker.feedback_loop import generate_preference_summary
+        user_id = user.get("id", "")
+        if user_id:
+            pref_summary = generate_preference_summary(user_id)
+            if pref_summary:
+                prompt += f"\n\nPRÉFÉRENCES APPRISES (feedback utilisateur) :\n{pref_summary}"
+    except Exception:
+        pass
+
+    return prompt
 
 
 def _get_llm_client() -> AsyncOpenAI:

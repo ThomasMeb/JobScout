@@ -1,4 +1,5 @@
-"""Notifications for scored jobs — email (Resend) and Telegram."""
+"""Notifications for scored jobs — email (Resend) and Telegram (interactive bot)."""
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -26,7 +27,6 @@ async def send_notifications():
 
     sb = get_supabase()
 
-    # Get users with any notification channel enabled
     profiles = (
         sb.table("profiles")
         .select("id, name, notification_email, telegram_chat_id, min_score_notify")
@@ -50,10 +50,11 @@ async def send_notifications():
 
         min_score = user.get("min_score_notify") or 70
 
-        # Get unnotified jobs above threshold
         new_jobs = (
             sb.table("user_jobs")
-            .select("id, match_score, match_priority, match_keywords, raw_jobs(title, company, location, source_url)")
+            .select("id, match_score, match_priority, match_keywords, missing_keywords, match_reasoning, "
+                    "raw_jobs(title, company, location, remote_type, salary_min, salary_max, "
+                    "salary_currency, source, source_url, apply_url)")
             .eq("user_id", user_id)
             .gte("match_score", min_score)
             .is_("notified_at", "null")
@@ -77,12 +78,20 @@ async def send_notifications():
                 total_email += 1
                 sent = True
 
-        # Telegram
+        # Telegram — use interactive bot if available, otherwise fallback to simple API
         if chat_id and has_telegram:
-            text = _build_telegram_message(name, jobs)
-            if await _send_telegram(settings.telegram_bot_token, chat_id, text):
-                total_telegram += 1
-                sent = True
+            bot = _get_telegram_bot()
+            if bot:
+                from worker.telegram_bot import send_interactive_notifications
+                count = await send_interactive_notifications(user_id, chat_id, jobs, bot)
+                if count > 0:
+                    total_telegram += 1
+                    sent = True
+            else:
+                text = _build_telegram_message(name, jobs)
+                if await _send_telegram(settings.telegram_bot_token, chat_id, text):
+                    total_telegram += 1
+                    sent = True
 
         if sent:
             job_ids = [j["id"] for j in jobs]
@@ -95,6 +104,15 @@ async def send_notifications():
         logger.info(f"Notifications sent: {total_email} emails, {total_telegram} telegram")
 
 
+def _get_telegram_bot():
+    """Try to get the running bot instance."""
+    try:
+        from worker.telegram_bot import get_bot
+        return get_bot()
+    except Exception:
+        return None
+
+
 def _build_digest_html(name: str, jobs: list[dict]) -> str:
     """Build a simple HTML email digest."""
     rows = ""
@@ -104,7 +122,6 @@ def _build_digest_html(name: str, jobs: list[dict]) -> str:
         priority = job.get("match_priority", "low")
         keywords = job.get("match_keywords", [])
         if isinstance(keywords, str):
-            import json
             try:
                 keywords = json.loads(keywords)
             except Exception:
@@ -145,7 +162,7 @@ def _build_digest_html(name: str, jobs: list[dict]) -> str:
 
 
 def _build_telegram_message(name: str, jobs: list[dict]) -> str:
-    """Build a Telegram digest message with Markdown."""
+    """Build a Telegram digest message with Markdown (fallback when bot not running)."""
     lines = [f"*Hi {name}, {len(jobs)} new job{'s' if len(jobs) > 1 else ''}:*\n"]
     for job in jobs[:10]:
         raw = job.get("raw_jobs", {})
@@ -165,7 +182,7 @@ def _build_telegram_message(name: str, jobs: list[dict]) -> str:
 
 
 async def _send_telegram(bot_token: str, chat_id: str, text: str) -> bool:
-    """Send message via Telegram Bot API."""
+    """Send message via Telegram Bot API (simple fallback)."""
     url = TELEGRAM_API_URL.format(token=bot_token)
     async with httpx.AsyncClient(timeout=15) as client:
         try:
