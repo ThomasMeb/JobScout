@@ -286,10 +286,16 @@ async def _send_job_notification(chat_id: int, job: dict, bot: Bot):
 
     match_kw = job.get("match_keywords") or []
     if isinstance(match_kw, str):
-        match_kw = json.loads(match_kw)
+        try:
+            match_kw = json.loads(match_kw)
+        except json.JSONDecodeError:
+            match_kw = []
     missing_kw = job.get("missing_keywords") or []
     if isinstance(missing_kw, str):
-        missing_kw = json.loads(missing_kw)
+        try:
+            missing_kw = json.loads(missing_kw)
+        except json.JSONDecodeError:
+            missing_kw = []
     reasoning = job.get("match_reasoning", "")
 
     salary = _format_salary_display(raw)

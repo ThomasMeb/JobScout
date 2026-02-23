@@ -86,14 +86,20 @@ def analyze_keyword_preferences(user_id: str) -> dict:
     for row in interested_rows:
         kws = row.get("match_keywords") or "[]"
         if isinstance(kws, str):
-            kws = json.loads(kws)
+            try:
+                kws = json.loads(kws)
+            except json.JSONDecodeError:
+                kws = []
         for kw in kws:
             interested_kw[kw.lower()] += 1
 
     for row in rejected_rows:
         kws = row.get("match_keywords") or "[]"
         if isinstance(kws, str):
-            kws = json.loads(kws)
+            try:
+                kws = json.loads(kws)
+            except json.JSONDecodeError:
+                kws = []
         for kw in kws:
             rejected_kw[kw.lower()] += 1
 

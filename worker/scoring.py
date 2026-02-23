@@ -89,12 +89,18 @@ def build_system_prompt(user: dict) -> str:
     return prompt
 
 
+_llm_client: AsyncOpenAI | None = None
+
+
 def _get_llm_client() -> AsyncOpenAI:
-    settings = get_settings()
-    return AsyncOpenAI(
-        api_key=settings.deepseek_api_key,
-        base_url=settings.deepseek_base_url,
-    )
+    global _llm_client
+    if _llm_client is None:
+        settings = get_settings()
+        _llm_client = AsyncOpenAI(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+        )
+    return _llm_client
 
 
 async def call_llm(

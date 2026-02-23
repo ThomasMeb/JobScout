@@ -18,7 +18,7 @@ from job_agent.scrapers.remoteok import RemoteOKScraper
 from job_agent.scrapers.wttj import WTTJScraper
 
 from worker.config import SCRAPER_CONFIGS, get_settings
-from worker.db import get_supabase
+from worker.db import get_supabase, get_user_monthly_cost
 from worker.scoring import (
     build_system_prompt,
     call_llm,
@@ -224,7 +224,7 @@ async def score_per_user():
 
         # Check monthly budget
         budget = float(user.get("monthly_budget_usd") or 5.0)
-        monthly_cost = _get_user_monthly_cost(sb, user_id)
+        monthly_cost = get_user_monthly_cost(sb, user_id)
         if monthly_cost >= budget:
             logger.info(f"User {user_id[:8]}... budget exhausted: ${monthly_cost:.4f} >= ${budget:.2f}")
             continue
@@ -333,17 +333,3 @@ Description :
     return cost
 
 
-def _get_user_monthly_cost(sb, user_id: str) -> float:
-    """Get total LLM cost for a user this month."""
-    month_start = datetime.now(timezone.utc).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    ).isoformat()
-
-    result = (
-        sb.table("llm_usage")
-        .select("cost_usd")
-        .eq("user_id", user_id)
-        .gte("created_at", month_start)
-        .execute()
-    )
-    return sum(row.get("cost_usd", 0) for row in (result.data or []))

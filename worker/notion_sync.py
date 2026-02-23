@@ -259,7 +259,10 @@ def _job_to_notion_properties(job: dict) -> dict:
     raw = job.get("raw_jobs", {})
     match_kw = job.get("match_keywords") or []
     if isinstance(match_kw, str):
-        match_kw = json.loads(match_kw)
+        try:
+            match_kw = json.loads(match_kw)
+        except json.JSONDecodeError:
+            match_kw = []
     score = job.get("match_score") or 0
 
     props = {

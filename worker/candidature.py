@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from worker.config import get_settings
-from worker.db import get_supabase
+from worker.db import get_supabase, get_user_monthly_cost
 from worker.scoring import call_llm, estimate_cost
 
 logger = logging.getLogger(__name__)
@@ -231,7 +231,7 @@ async def prepare_candidature(
     lang_label = "francais" if language == "fr" else "anglais"
 
     # Check budget before starting
-    monthly_cost = _get_user_monthly_cost(sb, user_id)
+    monthly_cost = get_user_monthly_cost(sb, user_id)
     budget = float(user.get("monthly_budget_usd") or 5.0)
     if monthly_cost >= budget:
         logger.warning(f"[Candidature] Budget exhausted for user {user_id[:8]}")
@@ -273,7 +273,7 @@ async def prepare_candidature(
     # Step 2 — Generate PDF
     logger.info("[Candidature] Step 2/4 — Generating PDF")
     labels = _get_labels(language)
-    pdf_bytes = _generate_pdf(cv_data, labels, template_name=settings.cv_template)
+    pdf_bytes = await _generate_pdf(cv_data, labels, template_name=settings.cv_template)
 
     # Step 3 — Cover letter
     logger.info("[Candidature] Step 3/4 — Generating cover letter")
@@ -448,7 +448,7 @@ def _get_labels(language: str) -> dict:
     }
 
 
-def _generate_pdf(cv_data: dict, labels: dict, template_name: str = "classic") -> bytes | None:
+async def _generate_pdf(cv_data: dict, labels: dict, template_name: str = "classic") -> bytes | None:
     """Fill the LaTeX template and compile to PDF. Returns PDF bytes or None."""
     template_path = TEMPLATES_DIR / f"cv_{template_name}.tex"
     if not template_path.exists():
@@ -639,16 +639,3 @@ def _log_llm_usage(
     }).execute()
 
 
-def _get_user_monthly_cost(sb, user_id: str) -> float:
-    from datetime import datetime, timezone
-    month_start = datetime.now(timezone.utc).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    ).isoformat()
-    result = (
-        sb.table("llm_usage")
-        .select("cost_usd")
-        .eq("user_id", user_id)
-        .gte("created_at", month_start)
-        .execute()
-    )
-    return sum(row.get("cost_usd", 0) for row in (result.data or []))
