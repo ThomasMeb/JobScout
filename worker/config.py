@@ -44,7 +44,7 @@ class WorkerSettings(BaseSettings):
     max_notifications_per_cycle: int = 10
 
     # Auto-apply
-    auto_apply_from_email: str = "apply@jobscout.app"
+    auto_apply_from_email: str = "jobscout@mebarki.dev"
     auto_apply_enabled: bool = True
 
     # Notion

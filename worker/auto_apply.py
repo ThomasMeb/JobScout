@@ -145,7 +145,7 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
     # Fetch application
     app_result = (
         sb.table("applications")
-        .select("cover_letter_text, cv_pdf_url")
+        .select("cover_letter, cv_storage_path")
         .eq("user_job_id", user_job_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -185,23 +185,20 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
     user_name = (profile.data or {}).get("name") or "Candidat"
     reply_to = (profile.data or {}).get("notification_email")
 
-    # Get CV PDF bytes
+    # Download CV PDF from Supabase Storage
     cv_pdf_bytes = None
-    cv_pdf_url = application.get("cv_pdf_url")
-    if cv_pdf_url:
+    cv_storage_path = application.get("cv_storage_path")
+    if cv_storage_path:
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(cv_pdf_url)
-                if resp.status_code == 200:
-                    cv_pdf_bytes = resp.content
+            cv_pdf_bytes = sb.storage.from_("applications").download(cv_storage_path)
         except Exception as e:
-            logger.error(f"Failed to download CV PDF: {e}")
+            logger.error(f"Failed to download CV PDF from storage: {e}")
 
     if not cv_pdf_bytes:
         logger.warning(f"No CV PDF available for user_job {user_job_id}, skipping auto-apply")
         return {"sent": False, "email": email, "apply_url": apply_url}
 
-    cover_letter = application.get("cover_letter_text") or ""
+    cover_letter = application.get("cover_letter") or ""
 
     sent = await send_application_email(
         to_email=email,
