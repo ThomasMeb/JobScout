@@ -46,6 +46,7 @@ class WorkerSettings(BaseSettings):
     # Auto-apply
     auto_apply_from_email: str = "thomas@mebarki.dev"
     auto_apply_enabled: bool = True
+    brevo_api_key: str = ""
 
     # Notion
     notion_token: str = ""

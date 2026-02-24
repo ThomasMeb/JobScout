@@ -12,7 +12,7 @@ from worker.db import get_supabase
 
 logger = logging.getLogger(__name__)
 
-RESEND_API_URL = "https://api.resend.com/emails"
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 # Emails to ignore when extracting from job postings
 IGNORED_EMAIL_PATTERNS = {
@@ -159,40 +159,43 @@ async def send_application_email(
     cv_pdf_bytes: bytes,
     reply_to: str | None = None,
 ) -> bool:
-    """Send application email via Resend API with CV PDF attachment.
+    """Send application email via Brevo API with CV PDF attachment.
 
-    Used only in solo mode when auto_apply_enabled=True and API key is configured.
+    Used only in solo mode when auto_apply_enabled=True and brevo_api_key is configured.
     """
     settings = get_settings()
 
-    if not settings.resend_api_key:
-        logger.warning("Resend API key not configured, cannot send application email")
+    if not settings.brevo_api_key:
+        logger.warning("Brevo API key not configured, cannot send application email")
         return False
 
     cv_b64 = base64.b64encode(cv_pdf_bytes).decode("utf-8")
 
     payload = {
-        "from": f"{user_name} via JobScout <{settings.auto_apply_from_email}>",
-        "to": [to_email],
+        "sender": {
+            "name": user_name,
+            "email": settings.auto_apply_from_email,
+        },
+        "to": [{"email": to_email}],
         "subject": f"Candidature - {job_title} - {user_name}",
-        "html": cover_letter,
-        "attachments": [
+        "htmlContent": cover_letter,
+        "attachment": [
             {
-                "filename": f"CV_{user_name.replace(' ', '_')}.pdf",
+                "name": f"CV_{user_name.replace(' ', '_')}.pdf",
                 "content": cv_b64,
             }
         ],
     }
 
     if reply_to:
-        payload["reply_to"] = reply_to
+        payload["replyTo"] = {"email": reply_to}
 
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             resp = await client.post(
-                RESEND_API_URL,
+                BREVO_API_URL,
                 headers={
-                    "Authorization": f"Bearer {settings.resend_api_key}",
+                    "api-key": settings.brevo_api_key,
                     "Content-Type": "application/json",
                 },
                 json=payload,
@@ -200,7 +203,7 @@ async def send_application_email(
             if resp.status_code in (200, 201):
                 logger.info(f"Application email sent to {to_email} for {job_title} @ {company}")
                 return True
-            logger.error(f"Resend API error {resp.status_code}: {resp.text}")
+            logger.error(f"Brevo API error {resp.status_code}: {resp.text}")
             return False
         except Exception as e:
             logger.error(f"Failed to send application email to {to_email}: {e}")
@@ -213,7 +216,7 @@ async def try_auto_send(user_id: str, user_job_id: int) -> dict:
     Returns: {"sent": bool, "email": str|None, "apply_url": str|None}
     """
     settings = get_settings()
-    if not settings.auto_apply_enabled or not settings.resend_api_key:
+    if not settings.auto_apply_enabled or not settings.brevo_api_key:
         return {"sent": False, "email": None, "apply_url": None}
 
     sb = get_supabase()
