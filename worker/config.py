@@ -40,6 +40,13 @@ class WorkerSettings(BaseSettings):
     cover_letter_max_tokens: int = 1024
     cv_template: str = "classic"
 
+    # Notifications
+    max_notifications_per_cycle: int = 10
+
+    # Auto-apply
+    auto_apply_from_email: str = "apply@jobscout.app"
+    auto_apply_enabled: bool = True
+
     # Notion
     notion_token: str = ""
     notion_jobs_db_id: str = ""

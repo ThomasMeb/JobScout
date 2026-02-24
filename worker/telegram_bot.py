@@ -481,7 +481,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Job actions — fetch job info
     uj = (
         sb.table("user_jobs")
-        .select("id, raw_jobs(title, company, source_url)")
+        .select("id, raw_jobs(title, company, source_url, apply_url)")
         .eq("id", item_id)
         .eq("user_id", user_id)
         .single()
@@ -498,8 +498,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "interested":
         sb.table("user_jobs").update({"status": "interested"}).eq("id", item_id).execute()
         await query.edit_message_text(
-            f"✅ {title} @ {company} — marqué comme intéressant\n"
-            f"🔗 {raw.get('source_url', '')}"
+            f"✅ {title} @ {company} — intéressant\n"
+            f"Préparation de la candidature en cours..."
+        )
+        asyncio.create_task(
+            _run_candidature_pipeline(user_id, item_id, query.message.chat_id, context.bot)
         )
 
     elif action == "reject":
@@ -525,7 +528,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "status": "validated",
             "validated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("user_job_id", item_id).eq("status", "draft").execute()
-        await query.edit_message_text(f"✅ {title} @ {company} — candidature validée !")
+
+        # Auto-apply: attempt to send application email
+        from worker.auto_apply import try_auto_apply
+        result = await try_auto_apply(user_id, item_id, context.bot, query.message.chat_id)
+
+        if result["sent"]:
+            await query.edit_message_text(
+                f"✅ {title} @ {company} — candidature envoyée automatiquement !\n"
+                f"Envoyé à : {result['email']}"
+            )
+        else:
+            apply_url = result.get("apply_url") or raw.get("source_url", "N/A")
+            await query.edit_message_text(
+                f"✅ {title} @ {company} — candidature validée\n"
+                f"Docs prêts. Postule ici : {apply_url}"
+            )
 
     elif action == "regen":
         sb.table("applications").delete().eq("user_job_id", item_id).eq("status", "draft").execute()

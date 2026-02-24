@@ -1,7 +1,7 @@
 """Notifications for scored jobs — email (Resend) and Telegram (interactive bot)."""
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -49,21 +49,46 @@ async def send_notifications():
             continue
 
         min_score = user.get("min_score_notify") or 70
+        max_notif = settings.max_notifications_per_cycle
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
 
         new_jobs = (
             sb.table("user_jobs")
             .select("id, match_score, match_priority, match_keywords, missing_keywords, match_reasoning, "
-                    "raw_jobs(title, company, location, remote_type, salary_min, salary_max, "
-                    "salary_currency, source, source_url, apply_url)")
+                    "raw_jobs!inner(title, company, location, remote_type, salary_min, salary_max, "
+                    "salary_currency, source, source_url, apply_url, posted_at)")
             .eq("user_id", user_id)
             .gte("match_score", min_score)
             .is_("notified_at", "null")
+            .gte("raw_jobs.posted_at", cutoff)
             .order("match_score", desc=True)
-            .limit(20)
+            .limit(max_notif)
             .execute()
         )
 
         jobs = new_jobs.data or []
+
+        # Fallback: if PostgREST inner join filter fails, filter in Python
+        if not jobs:
+            fallback_jobs = (
+                sb.table("user_jobs")
+                .select("id, match_score, match_priority, match_keywords, missing_keywords, match_reasoning, "
+                        "raw_jobs(title, company, location, remote_type, salary_min, salary_max, "
+                        "salary_currency, source, source_url, apply_url, posted_at)")
+                .eq("user_id", user_id)
+                .gte("match_score", min_score)
+                .is_("notified_at", "null")
+                .order("match_score", desc=True)
+                .limit(50)
+                .execute()
+            )
+            for j in (fallback_jobs.data or []):
+                posted = (j.get("raw_jobs") or {}).get("posted_at")
+                if posted and posted >= cutoff:
+                    jobs.append(j)
+                if len(jobs) >= max_notif:
+                    break
+
         if not jobs:
             continue
 
