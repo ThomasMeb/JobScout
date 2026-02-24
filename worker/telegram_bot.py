@@ -529,34 +529,49 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "validated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("user_job_id", item_id).eq("status", "draft").execute()
 
-        # Prepare apply info (mailto link + job URL)
-        from worker.auto_apply import prepare_apply_info
-        info = await prepare_apply_info(user_id, item_id)
+        # Solo mode: try direct send via Brevo
+        from worker.auto_apply import try_auto_send, prepare_apply_info
+        send_result = await try_auto_send(user_id, item_id)
 
-        apply_url = info.get("apply_url") or raw.get("source_url")
-
-        # Build response message and buttons
-        text = f"✅ {title} @ {company} — candidature validée !\n"
-        if info["email"]:
-            text += f"Email trouvé : {info['email']}\n"
-        text += "CV et lettre prêts ci-dessus."
-
-        buttons = []
-        if info["mailto_link"]:
-            buttons.append([InlineKeyboardButton(
-                "✉️ Envoyer par email",
-                url=info["mailto_link"],
-            )])
-        if apply_url:
-            buttons.append([InlineKeyboardButton(
-                "🔗 Postuler sur le site",
-                url=apply_url,
-            )])
-
-        if buttons:
-            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+        if send_result["sent"]:
+            apply_url = send_result.get("apply_url") or raw.get("source_url")
+            text = (
+                f"✅ {title} @ {company} — candidature envoyée !\n"
+                f"Envoyé à : {send_result['email']}"
+            )
+            buttons = []
+            if apply_url:
+                buttons.append([InlineKeyboardButton("🔗 Voir l'annonce", url=apply_url)])
+            if buttons:
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+            else:
+                await query.edit_message_text(text)
         else:
-            await query.edit_message_text(text)
+            # Fallback: mailto link + job URL
+            info = await prepare_apply_info(user_id, item_id)
+            apply_url = info.get("apply_url") or raw.get("source_url")
+
+            text = f"✅ {title} @ {company} — candidature validée !\n"
+            if info["email"]:
+                text += f"Email trouvé : {info['email']}\n"
+            text += "CV et lettre prêts ci-dessus."
+
+            buttons = []
+            if info["mailto_link"]:
+                buttons.append([InlineKeyboardButton(
+                    "✉️ Envoyer par email",
+                    url=info["mailto_link"],
+                )])
+            if apply_url:
+                buttons.append([InlineKeyboardButton(
+                    "🔗 Postuler sur le site",
+                    url=apply_url,
+                )])
+
+            if buttons:
+                await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+            else:
+                await query.edit_message_text(text)
 
     elif action == "regen":
         sb.table("applications").delete().eq("user_job_id", item_id).eq("status", "draft").execute()
