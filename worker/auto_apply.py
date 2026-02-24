@@ -1,8 +1,9 @@
-"""Auto-apply — email extraction + automatic application sending via Resend."""
+"""Auto-apply — email extraction, mailto link generation, and optional direct sending."""
 import base64
 import logging
 import re
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import httpx
 
@@ -71,6 +72,84 @@ def _is_valid_contact_email(email: str) -> bool:
     return True
 
 
+def build_mailto_link(to_email: str, subject: str, body: str) -> str:
+    """Build a mailto: link with pre-filled subject and body."""
+    return f"mailto:{to_email}?subject={quote(subject)}&body={quote(body)}"
+
+
+async def prepare_apply_info(user_id: str, user_job_id: int) -> dict:
+    """Prepare all application info for the validate step.
+
+    Returns: {
+        "email": str|None,        - extracted recruiter email
+        "mailto_link": str|None,  - pre-filled mailto: link
+        "apply_url": str|None,    - original job listing URL
+        "subject": str,           - email subject line
+        "user_name": str,         - candidate name
+    }
+    """
+    sb = get_supabase()
+
+    # Fetch application (cover letter for mailto body)
+    app_result = (
+        sb.table("applications")
+        .select("cover_letter")
+        .eq("user_job_id", user_job_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    application = (app_result.data or [None])[0]
+
+    # Fetch job info
+    uj_result = (
+        sb.table("user_jobs")
+        .select("raw_jobs(title, company, apply_url, source_url, description)")
+        .eq("id", user_job_id)
+        .single()
+        .execute()
+    )
+    raw = (uj_result.data or {}).get("raw_jobs", {})
+    apply_url = raw.get("apply_url") or raw.get("source_url")
+    description = raw.get("description")
+    job_title = raw.get("title", "")
+
+    # Get user profile info
+    profile = (
+        sb.table("profiles")
+        .select("name")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    user_name = (profile.data or {}).get("name") or "Candidat"
+
+    # Extract email
+    email = extract_email_from_job(apply_url, description)
+
+    # Build mailto link if email found
+    mailto_link = None
+    subject = f"Candidature - {job_title} - {user_name}"
+    if email and application:
+        # Use plain text version of cover letter for mailto body
+        cover_letter = application.get("cover_letter") or ""
+        # Strip HTML tags for plain text mailto body
+        body_text = re.sub(r"<[^>]+>", "", cover_letter).strip()
+        mailto_link = build_mailto_link(email, subject, body_text)
+
+    return {
+        "email": email,
+        "mailto_link": mailto_link,
+        "apply_url": apply_url,
+        "subject": subject,
+        "user_name": user_name,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Direct send (solo mode — requires SMTP/API config)
+# ---------------------------------------------------------------------------
+
 async def send_application_email(
     to_email: str,
     user_name: str,
@@ -80,7 +159,10 @@ async def send_application_email(
     cv_pdf_bytes: bytes,
     reply_to: str | None = None,
 ) -> bool:
-    """Send application email via Resend API with CV PDF attachment."""
+    """Send application email via Resend API with CV PDF attachment.
+
+    Used only in solo mode when auto_apply_enabled=True and API key is configured.
+    """
     settings = get_settings()
 
     if not settings.resend_api_key:
@@ -125,19 +207,13 @@ async def send_application_email(
             return False
 
 
-async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> dict:
-    """Attempt to auto-send application for a validated job.
-
-    1. Fetch application data (CV PDF + cover letter) from applications table
-    2. Fetch job info (apply_url, description)
-    3. Extract email from apply_url or description
-    4. If email found → send via Resend API
-    5. If no email → return apply_url for manual application
+async def try_auto_send(user_id: str, user_job_id: int) -> dict:
+    """Solo mode: attempt direct email send.
 
     Returns: {"sent": bool, "email": str|None, "apply_url": str|None}
     """
     settings = get_settings()
-    if not settings.auto_apply_enabled:
+    if not settings.auto_apply_enabled or not settings.resend_api_key:
         return {"sent": False, "email": None, "apply_url": None}
 
     sb = get_supabase()
@@ -153,7 +229,6 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
     )
     application = (app_result.data or [None])[0]
     if not application:
-        logger.warning(f"No application found for user_job {user_job_id}")
         return {"sent": False, "email": None, "apply_url": None}
 
     # Fetch job info
@@ -166,15 +241,12 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
     )
     raw = (uj_result.data or {}).get("raw_jobs", {})
     apply_url = raw.get("apply_url") or raw.get("source_url")
-    description = raw.get("description")
-
-    # Extract email
-    email = extract_email_from_job(apply_url, description)
+    email = extract_email_from_job(apply_url, raw.get("description"))
 
     if not email:
         return {"sent": False, "email": None, "apply_url": apply_url}
 
-    # Get user profile info
+    # Get user profile
     profile = (
         sb.table("profiles")
         .select("name, notification_email")
@@ -185,7 +257,7 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
     user_name = (profile.data or {}).get("name") or "Candidat"
     reply_to = (profile.data or {}).get("notification_email")
 
-    # Download CV PDF from Supabase Storage
+    # Download CV PDF
     cv_pdf_bytes = None
     cv_storage_path = application.get("cv_storage_path")
     if cv_storage_path:
@@ -195,23 +267,19 @@ async def try_auto_apply(user_id: str, user_job_id: int, bot, chat_id: int) -> d
             logger.error(f"Failed to download CV PDF from storage: {e}")
 
     if not cv_pdf_bytes:
-        logger.warning(f"No CV PDF available for user_job {user_job_id}, skipping auto-apply")
         return {"sent": False, "email": email, "apply_url": apply_url}
-
-    cover_letter = application.get("cover_letter") or ""
 
     sent = await send_application_email(
         to_email=email,
         user_name=user_name,
         job_title=raw.get("title", ""),
         company=raw.get("company", ""),
-        cover_letter=cover_letter,
+        cover_letter=application.get("cover_letter") or "",
         cv_pdf_bytes=cv_pdf_bytes,
         reply_to=reply_to,
     )
 
     if sent:
-        # Record the send in the application
         sb.table("applications").update({
             "status": "sent",
             "sent_at": datetime.now(timezone.utc).isoformat(),
