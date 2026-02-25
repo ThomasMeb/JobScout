@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import Charts from "@/components/Charts";
+import FilterBar from "@/components/FilterBar";
+import JobCard from "@/components/JobCard";
 import JobTable from "@/components/JobTable";
+import MobileNav from "@/components/MobileNav";
 import StatsBar from "@/components/StatsBar";
 import WorkerStatus from "@/components/WorkerStatus";
 import { bulkFeedback, exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
@@ -100,36 +103,9 @@ export default function DashboardPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        {/* Nav */}
-        <nav className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-            <h1 className="text-lg font-bold">
-              <span className="text-blue-600">Job</span>Scout
-            </h1>
-            <div className="flex items-center gap-4">
-              <a
-                href="/dashboard/admin"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              >
-                Admin
-              </a>
-              <a
-                href="/dashboard/billing"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              >
-                Billing
-              </a>
-              <a
-                href="/settings"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-              >
-                Settings
-              </a>
-            </div>
-          </div>
-        </nav>
+        <MobileNav />
 
-        <div className="mx-auto max-w-7xl space-y-6 px-6 py-6">
+        <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
           {stats && <StatsBar stats={stats} />}
           <Charts />
           <WorkerStatus />
@@ -140,7 +116,7 @@ export default function DashboardPage() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search jobs by title or company..."
+              placeholder="Search jobs..."
               className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
             />
             <button
@@ -160,49 +136,20 @@ export default function DashboardPage() {
             )}
           </form>
 
-          {/* Filters + Bulk actions */}
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            >
-              <option value="">All statuses</option>
-              <option value="new">New</option>
-              <option value="interested">Interested</option>
-              <option value="applied">Applied</option>
-              <option value="rejected">Rejected</option>
-            </select>
+          {/* Filters */}
+          <FilterBar
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            minScore={minScore}
+            setMinScore={setMinScore}
+            sourceFilter={sourceFilter}
+            setSourceFilter={setSourceFilter}
+            total={total}
+            onPageReset={() => setPage(1)}
+          />
 
-            <select
-              value={minScore === "" ? "" : String(minScore)}
-              onChange={(e) => { setMinScore(e.target.value ? Number(e.target.value) : ""); setPage(1); }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            >
-              <option value="">Any score</option>
-              <option value="70">70+</option>
-              <option value="50">50+</option>
-              <option value="30">30+</option>
-            </select>
-
-            <select
-              value={sourceFilter}
-              onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            >
-              <option value="">All sources</option>
-              <option value="wttj">WTTJ</option>
-              <option value="remoteok">RemoteOK</option>
-              <option value="adzuna">Adzuna</option>
-              <option value="francetravail">France Travail</option>
-              <option value="jobspy">JobSpy</option>
-            </select>
-
-            <span className="text-sm text-gray-500">
-              {total} job{total !== 1 ? "s" : ""}
-            </span>
-
-            {/* Bulk actions */}
+          {/* Bulk actions + Export */}
+          <div className="flex flex-wrap items-center gap-2">
             {selected.size > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950">
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
@@ -240,20 +187,48 @@ export default function DashboardPage() {
             </button>
           </div>
 
+          {/* Job listings */}
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
             </div>
           ) : (
-            <JobTable
-              jobs={jobs}
-              onRefresh={fetchData}
-              selected={selected}
-              onToggleSelect={toggleSelect}
-              onToggleSelectAll={toggleSelectAll}
-            />
+            <>
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <JobTable
+                  jobs={jobs}
+                  onRefresh={fetchData}
+                  selected={selected}
+                  onToggleSelect={toggleSelect}
+                  onToggleSelectAll={toggleSelectAll}
+                />
+              </div>
+
+              {/* Mobile: cards */}
+              <div className="space-y-3 md:hidden">
+                {jobs.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No jobs found.
+                    </p>
+                  </div>
+                ) : (
+                  jobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onRefresh={fetchData}
+                      selected={selected.has(job.id)}
+                      onToggleSelect={toggleSelect}
+                    />
+                  ))
+                )}
+              </div>
+            </>
           )}
 
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               <button
@@ -264,7 +239,7 @@ export default function DashboardPage() {
                 Previous
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page {page} of {totalPages}
+                {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(Math.min(totalPages, page + 1))}

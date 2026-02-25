@@ -3,43 +3,7 @@
 import Link from "next/link";
 import type { Job } from "@/lib/types";
 import { updateJobFeedback } from "@/lib/api";
-
-function ScoreBadge({ score, priority }: { score: number | null; priority: string }) {
-  if (score === null) return <span className="text-gray-400">&mdash;</span>;
-
-  const colors: Record<string, string> = {
-    high: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    low: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  };
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colors[priority] || colors.low}`}>
-      {Math.round(score)}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    new: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    interested: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    applied: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-    rejected: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  };
-
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] || colors.new}`}>
-      {status}
-    </span>
-  );
-}
-
-function RemoteBadge({ type }: { type: string }) {
-  if (type === "full") return <span className="text-xs text-green-600">Remote</span>;
-  if (type === "partial") return <span className="text-xs text-blue-600">Hybrid</span>;
-  return <span className="text-xs text-gray-500">On-site</span>;
-}
+import { ScoreBadge, StatusBadge, RemoteBadge } from "@/components/Badges";
 
 export default function JobTable({
   jobs,
@@ -132,7 +96,7 @@ export default function JobTable({
                 {job.company}
               </td>
               <td className="px-4 py-3 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">{job.location || "&mdash;"}</span>
+                <span className="text-gray-600 dark:text-gray-400">{job.location || "\u2014"}</span>
                 {" "}
                 <RemoteBadge type={job.remote_type} />
               </td>
