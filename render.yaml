@@ -21,7 +21,7 @@ services:
       - key: SUPABASE_JWT_SECRET
         sync: false
       - key: CORS_ORIGINS
-        value: https://jobscout-app.onrender.com,http://localhost:3000
+        value: https://jobscout-app.onrender.com
       - key: ENVIRONMENT
         value: production
 

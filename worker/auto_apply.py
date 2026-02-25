@@ -62,11 +62,12 @@ def extract_email_from_job(apply_url: str | None, description: str | None) -> st
 
 def _is_valid_contact_email(email: str) -> bool:
     """Check that the email is a real contact address, not automated."""
-    local_part = email.split("@")[0].lower()
-    domain = email.split("@")[1].lower() if "@" in email else ""
+    email_lower = email.lower()
+    local_part = email_lower.split("@")[0]
+    domain = email_lower.split("@")[1] if "@" in email_lower else ""
 
     for pattern in IGNORED_EMAIL_PATTERNS:
-        if pattern in local_part or pattern in domain:
+        if pattern in local_part or pattern in domain or pattern in email_lower:
             return False
 
     return True

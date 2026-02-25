@@ -11,21 +11,19 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-# Admin user IDs (hardcoded for now, can be moved to DB later)
-ADMIN_USER_IDS = {
-    "e47109a9-0ea6-4fa6-83dd-478bb15f01e4",  # Thomas
-}
-
-
-def _require_admin(user_id: Annotated[str, Depends(get_current_user_id)]) -> str:
-    if user_id not in ADMIN_USER_IDS:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return user_id
-
 
 def _get_admin_sb():
     settings = get_settings()
     return create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+
+def _require_admin(user_id: Annotated[str, Depends(get_current_user_id)]) -> str:
+    """Check is_admin flag in profiles table."""
+    sb = _get_admin_sb()
+    row = sb.table("profiles").select("is_admin").eq("id", user_id).maybe_single().execute()
+    if not row.data or not row.data.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user_id
 
 
 @router.get("/users")
