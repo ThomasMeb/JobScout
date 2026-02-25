@@ -88,12 +88,19 @@ async def run_cycle(cycle_count: int) -> int:
         except Exception as e:
             logger.error(f"Company research failed: {e}", exc_info=True)
 
-        # Phase 2: Notion sync
+        # Phase 2: Notion sync (push DB → Notion)
         try:
             from worker.notion_sync import sync_all_users
             await sync_all_users()
         except Exception as e:
-            logger.error(f"Notion sync failed: {e}", exc_info=True)
+            logger.error(f"Notion push sync failed: {e}", exc_info=True)
+
+        # Phase 6: Notion pull (Notion → DB)
+        try:
+            from worker.notion_sync import pull_all_users
+            await pull_all_users()
+        except Exception as e:
+            logger.error(f"Notion pull sync failed: {e}", exc_info=True)
 
         cycle_count += 1
         await _update_heartbeat("running", cycle_count)

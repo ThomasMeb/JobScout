@@ -1,10 +1,14 @@
-"""Notion CRM sync — push jobs and companies to Notion databases.
+"""Notion CRM sync — bidirectional sync between Supabase and Notion databases.
 
-Adapted from legacy/job_agent/notion_sync.py for multi-tenant SaaS (Supabase).
+Push: DB → Notion (jobs + companies)
+Pull: Notion → DB (status changes + notes)
+
+Conflict rules: Notion wins for status/notes, DB wins for technical data (score, keywords).
 """
 
 import json
 import logging
+from datetime import datetime, timezone
 
 import httpx
 
@@ -92,6 +96,7 @@ def setup_databases():
                 ]}},
                 "Salaire": {"rich_text": {}},
                 "Date scrape": {"date": {}},
+                "Notes": {"rich_text": {}},
             },
         })
         if result:
@@ -142,7 +147,7 @@ async def sync_jobs_to_notion(user_id: str) -> int:
     # Get unsynced jobs
     jobs = (
         sb.table("user_jobs")
-        .select("id, match_score, match_priority, match_keywords, match_reasoning, status, "
+        .select("id, match_score, match_priority, match_keywords, match_reasoning, status, user_notes, "
                 "raw_jobs(title, company, location, source, source_url, remote_type, "
                 "salary_min, salary_max, salary_currency, scraped_at)")
         .eq("user_id", user_id)
@@ -251,6 +256,120 @@ async def sync_all_users():
             logger.error(f"Notion sync failed for user {user_id[:8]}: {e}")
 
 
+async def pull_notion_changes(user_id: str) -> int:
+    """Pull status/notes changes from Notion → local DB.
+
+    1. Query Notion DB for pages modified since last sync
+    2. For each page with a known notion_page_id, compare status
+    3. If Notion status differs, update local user_jobs status
+    4. Sync Notes property → user_notes
+    5. Update notion_last_sync_at timestamp
+
+    Returns count of updated jobs.
+    """
+    settings = get_settings()
+    if not settings.notion_token or not settings.notion_jobs_db_id:
+        return 0
+
+    sb = get_supabase()
+
+    # Get user's last sync timestamp
+    profile = sb.table("profiles").select("notion_last_sync_at").eq("id", user_id).single().execute()
+    last_sync = (profile.data or {}).get("notion_last_sync_at")
+
+    # Build Notion query filter
+    filter_body: dict = {}
+    if last_sync:
+        filter_body["filter"] = {
+            "timestamp": "last_edited_time",
+            "last_edited_time": {"after": last_sync},
+        }
+
+    # Query Notion database
+    result = _notion_request("POST", f"databases/{settings.notion_jobs_db_id}/query", {
+        **filter_body,
+        "page_size": 100,
+    })
+    if not result or not result.get("results"):
+        return 0
+
+    # Get all user_jobs with notion_page_id for this user
+    local_jobs = (
+        sb.table("user_jobs")
+        .select("id, notion_page_id, status, user_notes")
+        .eq("user_id", user_id)
+        .not_.is_("notion_page_id", "null")
+        .execute()
+    )
+    # Build lookup: notion_page_id → local job
+    local_by_notion_id = {j["notion_page_id"]: j for j in (local_jobs.data or [])}
+
+    updated = 0
+    for page in result["results"]:
+        page_id = page["id"]
+        if page_id not in local_by_notion_id:
+            continue
+
+        local_job = local_by_notion_id[page_id]
+        props = page.get("properties", {})
+        changes = {}
+
+        # Check status
+        notion_status_prop = props.get("Statut", {}).get("select")
+        if notion_status_prop:
+            notion_status_name = notion_status_prop.get("name", "")
+            local_status = _reverse_map_status(notion_status_name)
+            if local_status and local_status != local_job["status"]:
+                changes["status"] = local_status
+
+        # Check notes
+        notes_prop = props.get("Notes", {}).get("rich_text", [])
+        notion_notes = "".join(t.get("plain_text", "") for t in notes_prop).strip()
+        local_notes = (local_job.get("user_notes") or "").strip()
+        if notion_notes and notion_notes != local_notes:
+            changes["user_notes"] = notion_notes
+
+        if changes:
+            sb.table("user_jobs").update(changes).eq("id", local_job["id"]).execute()
+            updated += 1
+            logger.debug(f"Notion pull: updated user_job {local_job['id']} — {changes}")
+
+    # Update last sync timestamp
+    sb.table("profiles").update({
+        "notion_last_sync_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", user_id).execute()
+
+    if updated:
+        logger.info(f"Notion pull: {updated} jobs updated for user {user_id[:8]}")
+    return updated
+
+
+async def pull_all_users():
+    """Pull Notion changes for all users with notion_enabled=true."""
+    settings = get_settings()
+    if not settings.notion_token:
+        return
+
+    sb = get_supabase()
+    profiles = (
+        sb.table("profiles")
+        .select("id")
+        .eq("onboarding_completed", True)
+        .eq("notion_enabled", True)
+        .execute()
+    )
+
+    if not profiles.data:
+        return
+
+    for user in profiles.data:
+        user_id = user["id"]
+        try:
+            await pull_notion_changes(user_id)
+        except Exception as e:
+            logger.error(f"Notion pull failed for user {user_id[:8]}: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Property builders
 # ---------------------------------------------------------------------------
@@ -298,6 +417,10 @@ def _job_to_notion_properties(job: dict) -> dict:
     if raw.get("scraped_at"):
         props["Date scrape"] = {"date": {"start": raw["scraped_at"][:10]}}
 
+    user_notes = job.get("user_notes") or ""
+    if user_notes.strip():
+        props["Notes"] = {"rich_text": [{"text": {"content": user_notes[:2000]}}]}
+
     return props
 
 
@@ -324,6 +447,7 @@ def _company_to_notion_properties(company: dict) -> dict:
 
 
 def _map_status(status: str) -> str:
+    """Map local status → Notion status label."""
     return {
         "new": "Nouveau",
         "notified": "Notifié",
@@ -334,6 +458,17 @@ def _map_status(status: str) -> str:
         "prepared": "Préparé",
         "sent": "Envoyé",
     }.get(status, status)
+
+
+def _reverse_map_status(notion_status: str) -> str | None:
+    """Map Notion status label → local status. Returns None if unknown."""
+    return {
+        "Nouveau": "new",
+        "Notifié": "new",
+        "Intéressé": "interested",
+        "Rejeté": "rejected",
+        "Postulé": "applied",
+    }.get(notion_status)
 
 
 def _format_salary(job: dict) -> str:
