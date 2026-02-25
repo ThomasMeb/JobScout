@@ -13,6 +13,9 @@ beautifulsoup4>=4.12.0
 lxml>=5.0.0
 python-jobspy>=1.1.0
 
+# Browser automation (JS-rendered scrapers)
+playwright>=1.40.0
+
 # Settings
 pydantic-settings>=2.5.0
 

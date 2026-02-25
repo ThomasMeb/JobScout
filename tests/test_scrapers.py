@@ -148,8 +148,15 @@ class TestScraperConfig:
         assert "adzuna" in active
         assert "remoteok" in active
 
+    def test_playwright_scrapers_enabled(self):
+        from worker.config import SCRAPER_CONFIGS
+        active = [k for k, v in SCRAPER_CONFIGS.items() if v.get("enabled")]
+        assert "hellowork" in active
+        assert "apec" in active
+        assert "freework" in active
+        assert "welovedevs" in active
+
     def test_disabled_scrapers(self):
         from worker.config import SCRAPER_CONFIGS
         disabled = [k for k, v in SCRAPER_CONFIGS.items() if not v.get("enabled")]
-        assert "hellowork" in disabled
-        assert "apec" in disabled
+        assert "indeed_rss" in disabled

@@ -160,6 +160,13 @@ async def main():
             f"Cycles completed: {cycle_count}"
         )
         raise
+    finally:
+        # Cleanup Playwright browser if it was used
+        try:
+            from job_agent.scrapers.browser import close_browser
+            await close_browser()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

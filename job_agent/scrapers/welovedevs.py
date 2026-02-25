@@ -1,11 +1,12 @@
 import asyncio
 import json
 import logging
+from urllib.parse import urlencode
 
-import httpx
 from bs4 import BeautifulSoup
 
 from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.browser import get_page
 
 logger = logging.getLogger(__name__)
 
@@ -23,31 +24,30 @@ class WeLoveDevsScraper(BaseScraper):
         jobs = []
         seen_urls = set()
 
-        async with httpx.AsyncClient(
-            timeout=30,
-            follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Language": "fr-FR,fr;q=0.9",
-            },
-        ) as client:
-            for query in queries:
-                for page in range(1, max_pages + 1):
-                    try:
-                        resp = await client.get(
-                            f"{BASE_URL}/app/job",
-                            params={"query": query, "page": page},
-                        )
-                        resp.raise_for_status()
-                    except Exception as e:
-                        logger.error(f"WeLoveDevs error for '{query}' p{page}: {e}")
-                        break
+        for query in queries:
+            for page_num in range(1, max_pages + 1):
+                params = urlencode({"query": query, "page": page_num})
+                url = f"{BASE_URL}/app/job?{params}"
+                try:
+                    async with get_page() as page:
+                        await page.goto(url, wait_until="domcontentloaded")
+                        try:
+                            await page.wait_for_selector(
+                                "a[href*='/app/job/'], div[class*='job-card'], article",
+                                timeout=10_000,
+                            )
+                        except Exception:
+                            pass
+                        html = await page.content()
+                except Exception as e:
+                    logger.error(f"WeLoveDevs error for '{query}' p{page_num}: {e}")
+                    break
 
-                    new_jobs = self._parse_page(resp.text, seen_urls)
-                    if not new_jobs:
-                        break
-                    jobs.extend(new_jobs)
-                    await asyncio.sleep(delay)
+                new_jobs = self._parse_page(html, seen_urls)
+                if not new_jobs:
+                    break
+                jobs.extend(new_jobs)
+                await asyncio.sleep(delay)
 
         logger.info(f"WeLoveDevs: {len(jobs)} jobs found")
         return jobs
@@ -71,22 +71,22 @@ class WeLoveDevsScraper(BaseScraper):
         for card in cards:
             try:
                 if card.name == "a":
-                    url = card.get("href", "")
+                    card_url = card.get("href", "")
                     title_el = card.select_one("h2, h3, [class*='title'], span[class*='title']")
                 else:
                     link = card.select_one("a[href*='/app/job/']")
-                    url = link.get("href", "") if link else ""
+                    card_url = link.get("href", "") if link else ""
                     title_el = card.select_one("h2, h3, [class*='title']")
 
                 if not title_el:
                     continue
                 title = title_el.get_text(strip=True)
 
-                if url and not url.startswith("http"):
-                    url = f"{BASE_URL}{url}"
-                if not url or url in seen_urls:
+                if card_url and not card_url.startswith("http"):
+                    card_url = f"{BASE_URL}{card_url}"
+                if not card_url or card_url in seen_urls:
                     continue
-                seen_urls.add(url)
+                seen_urls.add(card_url)
 
                 company_el = card.select_one("[class*='company'], [class*='entreprise']")
                 company = company_el.get_text(strip=True) if company_el else "Unknown"
@@ -110,8 +110,8 @@ class WeLoveDevsScraper(BaseScraper):
                     description="",
                     tags=[],
                     source="welovedevs",
-                    source_url=url,
-                    apply_url=url,
+                    source_url=card_url,
+                    apply_url=card_url,
                 ))
             except Exception as e:
                 logger.debug(f"WeLoveDevs parse error: {e}")

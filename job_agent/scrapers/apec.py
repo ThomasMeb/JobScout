@@ -5,6 +5,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.browser import get_page
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,36 @@ class APECScraper(BaseScraper):
         jobs = []
         seen_urls = set()
 
+        for query in queries:
+            # Try JSON API first (faster, no browser needed)
+            try:
+                api_jobs = await self._scrape_api(query, config)
+                for j in api_jobs:
+                    if j.source_url not in seen_urls:
+                        seen_urls.add(j.source_url)
+                        jobs.append(j)
+                await asyncio.sleep(delay)
+                continue  # API worked, skip Playwright for this query
+            except Exception as e:
+                logger.warning(f"APEC API failed for '{query}': {e}, falling back to Playwright")
+
+            # Fallback: Playwright
+            try:
+                pw_jobs = await self._scrape_playwright(query, seen_urls)
+                jobs.extend(pw_jobs)
+            except Exception as e:
+                logger.error(f"APEC Playwright error for '{query}': {e}")
+
+            await asyncio.sleep(delay)
+
+        logger.info(f"APEC: {len(jobs)} jobs found")
+        return jobs
+
+    async def _scrape_api(self, query: str, config: dict) -> list[RawJob]:
+        """Try APEC's internal JSON API."""
+        jobs = []
+        max_results = config.get("max_results", 50)
+
         async with httpx.AsyncClient(
             timeout=30,
             follow_redirects=True,
@@ -29,29 +60,6 @@ class APECScraper(BaseScraper):
                 "Accept-Language": "fr-FR,fr;q=0.9",
             },
         ) as client:
-            for query in queries:
-                # APEC uses an internal API for search results
-                # Try the JSON API endpoint first
-                try:
-                    api_jobs = await self._scrape_api(client, query, config)
-                    for j in api_jobs:
-                        if j.source_url not in seen_urls:
-                            seen_urls.add(j.source_url)
-                            jobs.append(j)
-                except Exception as e:
-                    logger.error(f"APEC API error for '{query}': {e}")
-
-                await asyncio.sleep(delay)
-
-        logger.info(f"APEC: {len(jobs)} jobs found")
-        return jobs
-
-    async def _scrape_api(self, client: httpx.AsyncClient, query: str, config: dict) -> list[RawJob]:
-        """Try APEC's internal JSON API."""
-        jobs = []
-        max_results = config.get("max_results", 50)
-
-        try:
             resp = await client.post(
                 "https://www.apec.fr/cms/webservices/rechercheOffre/search",
                 json={
@@ -66,8 +74,10 @@ class APECScraper(BaseScraper):
                 },
             )
             if resp.status_code != 200:
-                logger.debug(f"APEC API returned {resp.status_code}, falling back to HTML")
-                return await self._scrape_html(client, query, config)
+                raise httpx.HTTPStatusError(
+                    f"APEC API returned {resp.status_code}",
+                    request=resp.request, response=resp,
+                )
 
             data = resp.json()
             results = data.get("resultats", [])
@@ -98,22 +108,25 @@ class APECScraper(BaseScraper):
                     apply_url=url,
                 ))
 
-        except Exception as e:
-            logger.error(f"APEC API parse error: {e}")
-
         return jobs
 
-    async def _scrape_html(self, client: httpx.AsyncClient, query: str, config: dict) -> list[RawJob]:
-        """Fallback: scrape APEC HTML search results."""
+    async def _scrape_playwright(self, query: str, seen_urls: set) -> list[RawJob]:
+        """Fallback: render APEC search page with Playwright."""
         jobs = []
         try:
-            resp = await client.get(
-                SEARCH_URL,
-                params={"motsCles": query, "sortsType": "DATE"},
-            )
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "lxml")
+            async with get_page() as page:
+                url = f"{SEARCH_URL}?motsCles={query}&sortsType=DATE"
+                await page.goto(url, wait_until="domcontentloaded")
+                try:
+                    await page.wait_for_selector(
+                        "[class*='card-offer'], [class*='offer-item']",
+                        timeout=10_000,
+                    )
+                except Exception:
+                    pass
+                html = await page.content()
 
+            soup = BeautifulSoup(html, "lxml")
             cards = soup.select("[class*='card-offer'], [class*='offer-item']")
             for card in cards:
                 title_el = card.select_one("h2 a, h3 a, a[class*='title']")
@@ -121,9 +134,12 @@ class APECScraper(BaseScraper):
                     continue
 
                 title = title_el.get_text(strip=True)
-                url = title_el.get("href", "")
-                if url and not url.startswith("http"):
-                    url = f"https://www.apec.fr{url}"
+                card_url = title_el.get("href", "")
+                if card_url and not card_url.startswith("http"):
+                    card_url = f"https://www.apec.fr{card_url}"
+                if not card_url or card_url in seen_urls:
+                    continue
+                seen_urls.add(card_url)
 
                 company_el = card.select_one("[class*='company'], [class*='entreprise']")
                 company = company_el.get_text(strip=True) if company_el else "Non précisé"
@@ -139,12 +155,12 @@ class APECScraper(BaseScraper):
                     description="",
                     tags=[],
                     source="apec",
-                    source_url=url,
-                    apply_url=url,
+                    source_url=card_url,
+                    apply_url=card_url,
                 ))
 
         except Exception as e:
-            logger.error(f"APEC HTML scrape error: {e}")
+            logger.error(f"APEC Playwright scrape error: {e}")
 
         return jobs
 
@@ -156,7 +172,6 @@ def _parse_salary_text(text: str) -> tuple[int | None, int | None]:
         return int(numbers[0]) * 1000, int(numbers[1]) * 1000
     if len(numbers) == 1:
         return int(numbers[0]) * 1000, None
-    # Try with full numbers
     numbers = re.findall(r'(\d{2,})', text.replace(" ", ""))
     cleaned = [int(n) for n in numbers if int(n) > 10000]
     if len(cleaned) >= 2:

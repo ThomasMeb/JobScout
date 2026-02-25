@@ -16,6 +16,9 @@ WORKDIR /app
 COPY worker/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright Chromium + OS deps for JS-rendered scraping
+RUN playwright install --with-deps chromium
+
 # Copy worker code + templates
 COPY worker/ /app/worker/
 

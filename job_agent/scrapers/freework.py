@@ -1,11 +1,12 @@
 import asyncio
 import json
 import logging
+from urllib.parse import urlencode
 
-import httpx
 from bs4 import BeautifulSoup
 
 from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.browser import get_page
 
 logger = logging.getLogger(__name__)
 
@@ -20,41 +21,38 @@ class FreeWorkScraper(BaseScraper):
     async def scrape(self, queries: list[str], locations: list[str], config: dict) -> list[RawJob]:
         max_pages = config.get("max_pages", 2)
         delay = config.get("delay_between_requests", 3)
-        contract_type = config.get("contract_type", "")  # "freelance", "cdi", etc.
+        contract_type = config.get("contract_type", "")
         jobs = []
         seen_urls = set()
 
-        async with httpx.AsyncClient(
-            timeout=30,
-            follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/json",
-                "Accept-Language": "fr-FR,fr;q=0.9",
-            },
-        ) as client:
-            for query in queries:
-                for page in range(1, max_pages + 1):
-                    params = {"query": query, "page": page}
-                    if contract_type:
-                        params["contractType"] = contract_type
+        for query in queries:
+            for page_num in range(1, max_pages + 1):
+                params = {"query": query, "page": page_num}
+                if contract_type:
+                    params["contractType"] = contract_type
 
-                    try:
-                        # Try the internal API first (Free-Work is a SPA)
-                        resp = await client.get(
-                            f"{BASE_URL}/fr/tech-it/jobs",
-                            params=params,
-                        )
-                        resp.raise_for_status()
-                    except Exception as e:
-                        logger.error(f"Free-Work error for '{query}' p{page}: {e}")
-                        break
+                url = f"{BASE_URL}/fr/tech-it/jobs?{urlencode(params)}"
+                try:
+                    async with get_page() as page:
+                        await page.goto(url, wait_until="domcontentloaded")
+                        # Wait for Next.js hydration or job cards
+                        try:
+                            await page.wait_for_selector(
+                                "article, div[class*='job-card']",
+                                timeout=10_000,
+                            )
+                        except Exception:
+                            pass
+                        html = await page.content()
+                except Exception as e:
+                    logger.error(f"Free-Work error for '{query}' p{page_num}: {e}")
+                    break
 
-                    new_jobs = self._parse_page(resp.text, seen_urls)
-                    if not new_jobs:
-                        break
-                    jobs.extend(new_jobs)
-                    await asyncio.sleep(delay)
+                new_jobs = self._parse_page(html, seen_urls)
+                if not new_jobs:
+                    break
+                jobs.extend(new_jobs)
+                await asyncio.sleep(delay)
 
         logger.info(f"Free-Work: {len(jobs)} jobs found")
         return jobs
@@ -63,7 +61,7 @@ class FreeWorkScraper(BaseScraper):
         jobs = []
         soup = BeautifulSoup(html, "lxml")
 
-        # Try to find JSON data embedded in the page (Next.js __NEXT_DATA__)
+        # Try __NEXT_DATA__ first (SPA)
         script = soup.find("script", {"id": "__NEXT_DATA__"})
         if script and script.string:
             try:
@@ -72,7 +70,7 @@ class FreeWorkScraper(BaseScraper):
             except (json.JSONDecodeError, KeyError):
                 pass
 
-        # Fallback: parse HTML cards
+        # Fallback: HTML cards
         cards = soup.select("article, div[class*='job-card'], div[class*='offer-card'], a[class*='job']")
         for card in cards:
             try:
@@ -121,7 +119,6 @@ class FreeWorkScraper(BaseScraper):
         """Parse job data from Next.js __NEXT_DATA__ JSON."""
         jobs = []
         try:
-            # Navigate the Next.js data structure
             props = data.get("props", {}).get("pageProps", {})
             items = props.get("jobs", props.get("offers", props.get("results", [])))
 

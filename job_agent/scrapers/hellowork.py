@@ -1,10 +1,11 @@
 import asyncio
 import logging
+from urllib.parse import urlencode
 
-import httpx
 from bs4 import BeautifulSoup
 
 from job_agent.scrapers.base import BaseScraper, RawJob
+from job_agent.scrapers.browser import get_page
 
 logger = logging.getLogger(__name__)
 
@@ -18,38 +19,36 @@ class HelloWorkScraper(BaseScraper):
 
     async def scrape(self, queries: list[str], locations: list[str], config: dict) -> list[RawJob]:
         max_pages = config.get("max_pages", 3)
-        delay = config.get("delay_between_requests", 3)
+        delay = config.get("delay_between_requests", 5)
         jobs = []
         seen_urls = set()
 
-        async with httpx.AsyncClient(
-            timeout=30,
-            follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Language": "fr-FR,fr;q=0.9",
-            },
-        ) as client:
-            for query in queries:
-                for location in locations:
-                    for page in range(1, max_pages + 1):
-                        params = {
-                            "k": query,
-                            "l": location,
-                            "p": page,
-                        }
-                        try:
-                            resp = await client.get(BASE_URL, params=params)
-                            resp.raise_for_status()
-                        except Exception as e:
-                            logger.error(f"HelloWork error for '{query}' p{page}: {e}")
-                            break
+        for query in queries:
+            for location in locations:
+                for page_num in range(1, max_pages + 1):
+                    params = urlencode({"k": query, "l": location, "p": page_num})
+                    url = f"{BASE_URL}?{params}"
+                    try:
+                        async with get_page() as page:
+                            await page.goto(url, wait_until="domcontentloaded")
+                            # Wait for job cards to appear
+                            try:
+                                await page.wait_for_selector(
+                                    "[data-cy='offerCard'], .offer-card, article",
+                                    timeout=10_000,
+                                )
+                            except Exception:
+                                pass  # Page may have loaded but no cards
+                            html = await page.content()
+                    except Exception as e:
+                        logger.error(f"HelloWork error for '{query}' p{page_num}: {e}")
+                        break
 
-                        new_jobs = self._parse_page(resp.text, seen_urls)
-                        if not new_jobs:
-                            break
-                        jobs.extend(new_jobs)
-                        await asyncio.sleep(delay)
+                    new_jobs = self._parse_page(html, seen_urls)
+                    if not new_jobs:
+                        break
+                    jobs.extend(new_jobs)
+                    await asyncio.sleep(delay)
 
         logger.info(f"HelloWork: {len(jobs)} jobs found")
         return jobs
@@ -58,15 +57,12 @@ class HelloWorkScraper(BaseScraper):
         soup = BeautifulSoup(html, "lxml")
         jobs = []
 
-        # HelloWork uses article or li elements for job cards
         cards = soup.select("[data-cy='offerCard'], .offer-card, article.tw-flex")
         if not cards:
-            # Try alternative selectors
             cards = soup.select("li[class*='offer'], div[class*='job-card']")
 
         for card in cards:
             try:
-                # Title
                 title_el = card.select_one("h3 a, h2 a, a[data-cy='offerTitle'], a[class*='title']")
                 if not title_el:
                     continue
@@ -78,19 +74,15 @@ class HelloWorkScraper(BaseScraper):
                     continue
                 seen_urls.add(url)
 
-                # Company
                 company_el = card.select_one("[data-cy='companyName'], span[class*='company'], p[class*='company']")
                 company = company_el.get_text(strip=True) if company_el else "Unknown"
 
-                # Location
                 loc_el = card.select_one("[data-cy='localization'], span[class*='location'], p[class*='location']")
                 location = loc_el.get_text(strip=True) if loc_el else ""
 
-                # Contract type
                 contract_el = card.select_one("[data-cy='contractType'], span[class*='contract']")
                 contract = contract_el.get_text(strip=True) if contract_el else ""
 
-                # Description snippet
                 desc_el = card.select_one("[data-cy='description'], p[class*='description']")
                 description = desc_el.get_text(strip=True) if desc_el else ""
 

@@ -103,8 +103,24 @@ SCRAPER_CONFIGS = {
         "results_per_query": 25,
         "country": "France",
     },
-    "hellowork": {"enabled": False},
-    "apec": {"enabled": False},
-    "freework": {"enabled": False},
-    "welovedevs": {"enabled": False},
+    "hellowork": {
+        "enabled": True,
+        "max_pages": 3,
+        "delay_between_requests": 5,
+    },
+    "apec": {
+        "enabled": True,
+        "max_results": 50,
+        "delay_between_requests": 3,
+    },
+    "freework": {
+        "enabled": True,
+        "max_pages": 2,
+        "delay_between_requests": 3,
+    },
+    "welovedevs": {
+        "enabled": True,
+        "max_pages": 2,
+        "delay_between_requests": 3,
+    },
 }
