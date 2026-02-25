@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from supabase import Client
 
 from app.auth import get_current_user_id, get_rls_supabase
-from app.models.job import JobFeedback, JobListResponse, JobRead
+from app.models.job import BulkFeedback, JobFeedback, JobListResponse, JobRead
 
 
 def _parse_list(val: object) -> list[str]:
@@ -38,6 +38,7 @@ async def list_jobs(
     min_score: float | None = Query(default=None, ge=0, le=100),
     status: str | None = Query(default=None, pattern="^(new|interested|rejected|applied)$"),
     source: str | None = None,
+    search: str | None = Query(default=None, max_length=200),
 ):
     """List scored jobs for the current user with pagination and filters."""
     offset = (page - 1) * per_page
@@ -56,6 +57,11 @@ async def list_jobs(
         query = query.eq("status", status)
     if source:
         query = query.eq("raw_jobs.source", source)
+    if search:
+        # Full-text search on title and company via PostgREST ilike
+        query = query.or_(
+            f"raw_jobs.title.ilike.%{search}%,raw_jobs.company.ilike.%{search}%"
+        )
 
     result = query.range(offset, offset + per_page - 1).execute()
 
@@ -164,6 +170,31 @@ async def update_feedback(
 
     # Fetch full job with raw_jobs join for response
     return await get_job(job_id, user_id, sb)
+
+
+@router.patch("/bulk/feedback")
+async def bulk_feedback(
+    payload: BulkFeedback,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    sb: Annotated[Client, Depends(get_rls_supabase)],
+):
+    """Update status for multiple jobs at once."""
+    if len(payload.job_ids) > 100:
+        raise HTTPException(status_code=400, detail="Max 100 jobs per bulk operation")
+
+    updated = 0
+    for job_id in payload.job_ids:
+        result = (
+            sb.table("user_jobs")
+            .update({"status": payload.status})
+            .eq("id", job_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if result.data:
+            updated += 1
+
+    return {"updated": updated}
 
 
 @router.get("/export/csv")

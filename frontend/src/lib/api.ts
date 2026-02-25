@@ -38,6 +38,7 @@ export interface JobFilters {
   min_score?: number;
   status?: string;
   source?: string;
+  search?: string;
 }
 
 export const getJobs = (filters: JobFilters = {}) => {
@@ -47,8 +48,15 @@ export const getJobs = (filters: JobFilters = {}) => {
   if (filters.min_score) params.set("min_score", String(filters.min_score));
   if (filters.status) params.set("status", filters.status);
   if (filters.source) params.set("source", filters.source);
+  if (filters.search) params.set("search", filters.search);
   return fetchAPI(`/api/jobs/?${params}`);
 };
+
+export const bulkFeedback = (jobIds: number[], status: string) =>
+  fetchAPI("/api/jobs/bulk/feedback", {
+    method: "PATCH",
+    body: JSON.stringify({ job_ids: jobIds, status }),
+  });
 
 export const getJob = (id: number) => fetchAPI(`/api/jobs/${id}`);
 
@@ -93,6 +101,13 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
 // Account
 export const deleteAccount = () =>
   fetchAPI("/api/profile/", { method: "DELETE" });
+
+// Billing
+export const getBillingStatus = () => fetchAPI("/api/billing/status");
+export const createCheckout = () =>
+  fetchAPI("/api/billing/checkout", { method: "POST" });
+export const createPortal = () =>
+  fetchAPI("/api/billing/portal", { method: "POST" });
 
 // Stats
 export const getStats = () => fetchAPI("/api/stats/");

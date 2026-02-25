@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # Observability
     sentry_dsn: str = ""
 
+    # Stripe billing
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_pro_price_id: str = ""
+    frontend_url: str = "http://localhost:3000"
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"

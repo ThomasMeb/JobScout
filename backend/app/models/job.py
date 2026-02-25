@@ -34,6 +34,11 @@ class JobFeedback(BaseModel):
     user_notes: str | None = None
 
 
+class BulkFeedback(BaseModel):
+    job_ids: list[int]
+    status: Literal["interested", "rejected", "applied", "new"]
+
+
 class JobListResponse(BaseModel):
     jobs: list[JobRead]
     total: int

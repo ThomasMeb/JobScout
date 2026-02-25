@@ -17,6 +17,7 @@ class ProfileRead(BaseModel):
     notification_email: str | None = None
     monthly_budget_usd: float = Field(default=5.0, ge=0.0, le=100.0)
     onboarding_completed: bool = False
+    plan: str = "free"
 
 
 class ProfileUpdate(BaseModel):

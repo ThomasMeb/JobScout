@@ -17,6 +17,10 @@ def mock_settings():
         settings.cors_origins = "http://localhost:3000"
         settings.sentry_dsn = ""
         settings.environment = "test"
+        settings.stripe_secret_key = ""
+        settings.stripe_webhook_secret = ""
+        settings.stripe_pro_price_id = ""
+        settings.frontend_url = "http://localhost:3000"
         mock.return_value = settings
         yield settings
 

@@ -7,7 +7,7 @@ import Charts from "@/components/Charts";
 import JobTable from "@/components/JobTable";
 import StatsBar from "@/components/StatsBar";
 import WorkerStatus from "@/components/WorkerStatus";
-import { exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
+import { bulkFeedback, exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
 import type { Job, JobListResponse, Profile, UserStats } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -22,6 +22,11 @@ export default function DashboardPage() {
   const [minScore, setMinScore] = useState<number | "">("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const perPage = 20;
 
@@ -41,6 +46,7 @@ export default function DashboardPage() {
           min_score: minScore || undefined,
           status: statusFilter || undefined,
           source: sourceFilter || undefined,
+          search: searchQuery || undefined,
         }),
         getStats(),
       ]);
@@ -48,16 +54,46 @@ export default function DashboardPage() {
       setJobs(jobsRes.jobs);
       setTotal(jobsRes.total);
       setStats(statsRes);
+      setSelected(new Set());
     } catch (e) {
       console.error("Failed to load dashboard:", e);
     } finally {
       setLoading(false);
     }
-  }, [page, minScore, statusFilter, sourceFilter, router]);
+  }, [page, minScore, statusFilter, sourceFilter, searchQuery, router]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+    setPage(1);
+  }
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === jobs.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(jobs.map((j) => j.id)));
+    }
+  }
+
+  async function handleBulkAction(status: string) {
+    if (selected.size === 0) return;
+    await bulkFeedback(Array.from(selected), status);
+    await fetchData();
+  }
 
   const totalPages = Math.ceil(total / perPage);
 
@@ -70,12 +106,20 @@ export default function DashboardPage() {
             <h1 className="text-lg font-bold">
               <span className="text-blue-600">Job</span>Scout
             </h1>
-            <a
-              href="/settings"
-              className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Settings
-            </a>
+            <div className="flex items-center gap-4">
+              <a
+                href="/dashboard/billing"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Billing
+              </a>
+              <a
+                href="/settings"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Settings
+              </a>
+            </div>
           </div>
         </nav>
 
@@ -84,8 +128,34 @@ export default function DashboardPage() {
           <Charts />
           <WorkerStatus />
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
+          {/* Search */}
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search jobs by title or company..."
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Search
+            </button>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
+              >
+                Clear
+              </button>
+            )}
+          </form>
+
+          {/* Filters + Bulk actions */}
+          <div className="flex flex-wrap items-center gap-3">
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
@@ -122,9 +192,36 @@ export default function DashboardPage() {
               <option value="jobspy">JobSpy</option>
             </select>
 
-            <span className="self-center text-sm text-gray-500">
+            <span className="text-sm text-gray-500">
               {total} job{total !== 1 ? "s" : ""}
             </span>
+
+            {/* Bulk actions */}
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {selected.size} selected
+                </span>
+                <button
+                  onClick={() => handleBulkAction("interested")}
+                  className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-green-700"
+                >
+                  Interested
+                </button>
+                <button
+                  onClick={() => handleBulkAction("rejected")}
+                  className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleBulkAction("new")}
+                  className="rounded bg-gray-500 px-2 py-0.5 text-xs font-medium text-white hover:bg-gray-600"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
 
             <button
               onClick={() => exportJobsCSV({
@@ -142,7 +239,13 @@ export default function DashboardPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
             </div>
           ) : (
-            <JobTable jobs={jobs} onRefresh={fetchData} />
+            <JobTable
+              jobs={jobs}
+              onRefresh={fetchData}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onToggleSelectAll={toggleSelectAll}
+            />
           )}
 
           {totalPages > 1 && (

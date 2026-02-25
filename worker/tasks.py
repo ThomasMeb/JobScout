@@ -205,7 +205,7 @@ async def score_per_user():
         sb.table("profiles")
         .select("id, cv_text, profile_summary, search_queries, search_locations, "
                 "bonus_keywords, penalty_keywords, remote_accepted, min_salary, "
-                "monthly_budget_usd")
+                "monthly_budget_usd, plan")
         .eq("onboarding_completed", True)
         .execute()
     )
@@ -250,7 +250,13 @@ async def score_per_user():
             logger.info(f"User {user_id[:8]}...: no unscored jobs")
             continue
 
-        logger.info(f"User {user_id[:8]}...: scoring {len(jobs)} jobs")
+        # Enforce plan limits: Free = 10 jobs/cycle, Pro/Trial = unlimited
+        user_plan = user.get("plan") or "free"
+        if user_plan == "free":
+            free_limit = 10
+            jobs = jobs[:free_limit]
+
+        logger.info(f"User {user_id[:8]}... [{user_plan}]: scoring {len(jobs)} jobs")
 
         # Build system prompt with user's full profile and preferences
         system_prompt = build_system_prompt(user)

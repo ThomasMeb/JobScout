@@ -5,7 +5,7 @@ import type { Job } from "@/lib/types";
 import { updateJobFeedback } from "@/lib/api";
 
 function ScoreBadge({ score, priority }: { score: number | null; priority: string }) {
-  if (score === null) return <span className="text-gray-400">—</span>;
+  if (score === null) return <span className="text-gray-400">&mdash;</span>;
 
   const colors: Record<string, string> = {
     high: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -44,9 +44,15 @@ function RemoteBadge({ type }: { type: string }) {
 export default function JobTable({
   jobs,
   onRefresh,
+  selected,
+  onToggleSelect,
+  onToggleSelectAll,
 }: {
   jobs: Job[];
   onRefresh: () => void;
+  selected?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onToggleSelectAll?: () => void;
 }) {
   async function handleFeedback(jobId: number, status: string) {
     try {
@@ -56,6 +62,8 @@ export default function JobTable({
       console.error("Feedback error:", e);
     }
   }
+
+  const hasSelection = selected !== undefined && onToggleSelect !== undefined;
 
   if (!jobs.length) {
     return (
@@ -72,6 +80,16 @@ export default function JobTable({
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
+            {hasSelection && (
+              <th className="px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={selected.size === jobs.length && jobs.length > 0}
+                  onChange={onToggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+              </th>
+            )}
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
@@ -83,7 +101,22 @@ export default function JobTable({
         </thead>
         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
           {jobs.map((job) => (
-            <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+            <tr
+              key={job.id}
+              className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                hasSelection && selected.has(job.id) ? "bg-blue-50 dark:bg-blue-950" : ""
+              }`}
+            >
+              {hasSelection && (
+                <td className="px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(job.id)}
+                    onChange={() => onToggleSelect(job.id)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </td>
+              )}
               <td className="px-4 py-3">
                 <ScoreBadge score={job.match_score} priority={job.match_priority} />
               </td>
@@ -99,7 +132,8 @@ export default function JobTable({
                 {job.company}
               </td>
               <td className="px-4 py-3 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">{job.location || "—"}</span>
+                <span className="text-gray-600 dark:text-gray-400">{job.location || "&mdash;"}</span>
+                {" "}
                 <RemoteBadge type={job.remote_type} />
               </td>
               <td className="px-4 py-3 text-sm text-gray-500">{job.source}</td>

@@ -14,6 +14,7 @@ export interface Profile {
   notification_email: string | null;
   monthly_budget_usd: number;
   onboarding_completed: boolean;
+  plan: string;
 }
 
 export interface Job {
