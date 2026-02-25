@@ -1,5 +1,6 @@
 """JobScout SaaS Worker — scrape global + score per-user + notifications + Phase 2 modules."""
 import asyncio
+import json
 import logging
 import traceback
 from datetime import datetime, timezone
@@ -11,10 +12,23 @@ from worker.config import get_settings
 from worker.notifications import send_notifications
 from worker.tasks import scrape_global, score_per_user
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log = {
+            "time": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[0]:
+            log["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
 

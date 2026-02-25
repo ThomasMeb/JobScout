@@ -108,6 +108,12 @@ export default function DashboardPage() {
             </h1>
             <div className="flex items-center gap-4">
               <a
+                href="/dashboard/admin"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Admin
+              </a>
+              <a
                 href="/dashboard/billing"
                 className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >

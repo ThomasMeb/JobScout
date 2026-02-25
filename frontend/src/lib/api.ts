@@ -109,6 +109,11 @@ export const createCheckout = () =>
 export const createPortal = () =>
   fetchAPI("/api/billing/portal", { method: "POST" });
 
+// Admin
+export const getAdminUsers = () => fetchAPI("/api/admin/users");
+export const getAdminScrapers = () => fetchAPI("/api/admin/scrapers");
+export const getAdminMetrics = () => fetchAPI("/api/admin/metrics");
+
 // Stats
 export const getStats = () => fetchAPI("/api/stats/");
 
