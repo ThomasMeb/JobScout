@@ -90,6 +90,10 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
   window.URL.revokeObjectURL(url);
 };
 
+// Account
+export const deleteAccount = () =>
+  fetchAPI("/api/profile/", { method: "DELETE" });
+
 // Stats
 export const getStats = () => fetchAPI("/api/stats/");
 

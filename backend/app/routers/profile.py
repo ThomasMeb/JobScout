@@ -2,9 +2,11 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from supabase import Client
+from fastapi.responses import JSONResponse
+from supabase import Client, create_client
 
 from app.auth import get_current_user_id, get_rls_supabase
+from app.config import get_settings
 from app.models.profile import ProfileRead, ProfileUpdate
 
 logger = logging.getLogger(__name__)
@@ -43,3 +45,25 @@ async def update_profile(
     if not result.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     return ProfileRead(**result.data[0])
+
+
+@router.delete("/")
+async def delete_account(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+):
+    """Delete the current user's account and all associated data (RGPD)."""
+    settings = get_settings()
+    sb = create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+    # Cascade delete user data (order matters for FK constraints)
+    sb.table("applications").delete().eq("user_id", user_id).execute()
+    sb.table("user_jobs").delete().eq("user_id", user_id).execute()
+    sb.table("profiles").delete().eq("id", user_id).execute()
+
+    # Delete auth user via Supabase Admin API
+    try:
+        sb.auth.admin.delete_user(user_id)
+    except Exception as e:
+        logger.error(f"Failed to delete auth user {user_id}: {e}")
+
+    return JSONResponse({"status": "deleted"})
