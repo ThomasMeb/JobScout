@@ -19,3 +19,6 @@ pydantic-settings>=2.5.0
 # Phase 2: Telegram bot + Notion
 python-telegram-bot>=21.0
 notion-client>=2.0.0
+
+# Observability
+sentry-sdk>=2.0.0

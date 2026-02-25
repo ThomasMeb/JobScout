@@ -1,5 +1,6 @@
 import logging
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,6 +12,15 @@ from app.config import get_settings
 from app.routers import health, jobs, profile, scrape_runs, stats
 
 logging.basicConfig(level=logging.INFO)
+
+# Init Sentry before FastAPI (no-op if DSN is empty)
+_settings = get_settings()
+if _settings.sentry_dsn and isinstance(_settings.sentry_dsn, str) and _settings.sentry_dsn.startswith("http"):
+    sentry_sdk.init(
+        dsn=_settings.sentry_dsn,
+        traces_sample_rate=0.2,
+        environment=_settings.environment,
+    )
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 

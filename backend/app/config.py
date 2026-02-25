@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     france_travail_client_id: str = ""
     france_travail_client_secret: str = ""
 
+    # Observability
+    sentry_dsn: str = ""
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:3000"

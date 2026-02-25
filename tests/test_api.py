@@ -15,6 +15,8 @@ def mock_settings():
         settings.supabase_service_role_key = "fake-service-key"
         settings.supabase_jwt_secret = "fake-jwt-secret"
         settings.cors_origins = "http://localhost:3000"
+        settings.sentry_dsn = ""
+        settings.environment = "test"
         mock.return_value = settings
         yield settings
 

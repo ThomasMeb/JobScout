@@ -48,6 +48,9 @@ class WorkerSettings(BaseSettings):
     auto_apply_enabled: bool = True
     brevo_api_key: str = ""
 
+    # Observability
+    sentry_dsn: str = ""
+
     # Notion
     notion_token: str = ""
     notion_jobs_db_id: str = ""

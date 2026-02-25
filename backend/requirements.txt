@@ -16,3 +16,6 @@ openai>=1.40.0
 
 # Rate limiting
 slowapi>=0.1.9
+
+# Observability
+sentry-sdk[fastapi]>=2.0.0
