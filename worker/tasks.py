@@ -16,7 +16,6 @@ import sentry_sdk
 from job_agent.scrapers.adzuna import AdzunaScraper
 from job_agent.scrapers.base import RawJob
 from job_agent.scrapers.francetravail import FranceTravailScraper
-from job_agent.scrapers.jobspy import JobSpyScraper
 from job_agent.scrapers.remoteok import RemoteOKScraper
 from job_agent.scrapers.wttj import WTTJScraper
 
@@ -37,9 +36,10 @@ ALL_SCRAPERS = [
     ("remoteok", RemoteOKScraper()),
     ("adzuna", AdzunaScraper()),
     ("francetravail", FranceTravailScraper()),
-    ("jobspy", JobSpyScraper()),
+    # JobSpy disabled — runs in executor (uninterruptible by asyncio timeout),
+    # 18 sequential requests with sleeps, and returns 0 jobs consistently.
+    # ("jobspy", JobSpyScraper()),
     # Playwright scrapers disabled — Chromium exceeds Render Starter 512MB RAM limit.
-    # Re-enable when upgrading to a plan with >= 1GB RAM.
     # ("hellowork", HelloWorkScraper()),
     # ("apec", APECScraper()),
     # ("freework", FreeWorkScraper()),
@@ -111,7 +111,7 @@ async def scrape_global():
         )
 
         raw_jobs = None
-        max_retries = 2
+        max_retries = 1
         scraper_timeout = 120  # 2 minutes max per scraper attempt
         for attempt in range(max_retries + 1):
             try:
