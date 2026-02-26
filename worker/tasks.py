@@ -8,7 +8,10 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from datetime import datetime, timezone
+
+import sentry_sdk
 
 from job_agent.scrapers.adzuna import AdzunaScraper
 from job_agent.scrapers.apec import APECScraper
@@ -103,6 +106,11 @@ async def scrape_global():
 
         logger.info(f"Scraping {source_key}...")
         run_id = _log_scrape_start(sb, source_key, queries)
+        t0 = time.monotonic()
+
+        sentry_sdk.add_breadcrumb(
+            category="scraper", message=f"Starting {source_key}", level="info",
+        )
 
         raw_jobs = None
         max_retries = 2
@@ -116,8 +124,12 @@ async def scrape_global():
                     logger.warning(f"Scraper {source_key} attempt {attempt + 1} failed: {e}, retrying in {wait}s")
                     await asyncio.sleep(wait)
                 else:
+                    duration = time.monotonic() - t0
                     logger.error(f"Scraper {source_key} failed after {max_retries + 1} attempts: {e}")
-                    _log_scrape_finish(sb, run_id, 0, 0, "error", str(e))
+                    sentry_sdk.add_breadcrumb(
+                        category="scraper", message=f"{source_key} FAILED in {duration:.1f}s: {e}", level="error",
+                    )
+                    _log_scrape_finish(sb, run_id, 0, 0, "error", str(e), duration)
 
         if raw_jobs is None:
             continue
@@ -129,10 +141,11 @@ async def scrape_global():
             if inserted:
                 new += 1
 
-        _log_scrape_finish(sb, run_id, found, new, "success")
+        duration = time.monotonic() - t0
+        _log_scrape_finish(sb, run_id, found, new, "success", duration=duration)
         total_found += found
         total_new += new
-        logger.info(f"  {source_key}: {found} found, {new} new")
+        logger.info(f"  {source_key}: {found} found, {new} new ({duration:.1f}s)")
 
     logger.info(f"Scrape complete: {total_found} found, {total_new} new")
 
@@ -182,18 +195,22 @@ def _log_scrape_start(sb, source: str, queries: list[str]) -> int | None:
 
 
 def _log_scrape_finish(
-    sb, run_id: int | None, found: int, new: int, status: str, error: str | None = None
+    sb, run_id: int | None, found: int, new: int, status: str,
+    error: str | None = None, duration: float | None = None,
 ):
-    """Update scrape run with results."""
+    """Update scrape run with results and duration."""
     if run_id is None:
         return
-    sb.table("scrape_runs").update({
+    row = {
         "jobs_found": found,
         "jobs_new": new,
         "status": status,
         "error_message": error,
         "finished_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", run_id).execute()
+    }
+    if duration is not None:
+        row["duration_seconds"] = round(duration, 2)
+    sb.table("scrape_runs").update(row).eq("id", run_id).execute()
 
 
 async def score_per_user():

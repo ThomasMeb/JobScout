@@ -290,4 +290,13 @@ async def try_auto_send(user_id: str, user_job_id: int) -> dict:
             "sent_to_email": email,
         }).eq("user_job_id", user_job_id).order("created_at", desc=True).limit(1).execute()
 
+        # Send confirmation email to user
+        try:
+            from worker.emails import send_application_confirmation
+            await send_application_confirmation(
+                user_id, raw.get("title", ""), raw.get("company", ""), email,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send application confirmation email: {e}")
+
     return {"sent": sent, "email": email, "apply_url": apply_url}

@@ -1,7 +1,7 @@
 # JobScout — Roadmap
 
-> **127 tests** | 17 routes frontend | **9 scrapers actifs** | Stripe billing | Admin dashboard | Notion bidi | Mobile responsive
-> Dernière mise à jour : 25 fév 2026
+> **140+ tests** | 18 routes frontend | **9 scrapers actifs** | Stripe billing | Admin dashboard | Notion bidi | Mobile responsive | Brevo emails | Scraper monitoring
+> Dernière mise à jour : 26 fév 2026
 
 ---
 
@@ -47,28 +47,52 @@
 - `Badges.tsx` : composants partagés ScoreBadge/StatusBadge/RemoteBadge
 - Dashboard responsive : table `md:+`, cards mobile `<md:`
 
+### Phase 9 — Emails, Onboarding, Monitoring (terminé)
+- **Emails transactionnels Brevo** (`worker/emails.py`) :
+  - Welcome email après onboarding (avec tracking `welcome_email_sent_at`)
+  - Weekly digest top 5 (1x/semaine, `last_digest_at` tracking)
+  - Confirmation envoi candidature auto (intégré dans `auto_apply.py`)
+  - Templates HTML inline, envoi via Brevo API
+  - Migration 011 : `welcome_email_sent_at`, `last_digest_at` sur profiles
+- **Tests d'intégration scrapers** (`tests/test_integration_scrapers.py`) :
+  - 9 scrapers testés avec `@pytest.mark.integration`
+  - Validation RawJob (title, company, source, source_url)
+  - Tests contrat BaseScraper (source_name, scrape method)
+  - Exclus par défaut (`pytest -m "not integration"`)
+- **Onboarding amélioré** (`ProfileForm.tsx`) :
+  - Indicateur temps estimé par étape ("Step 1/5 — ~1 min")
+  - Validation temps réel (nom requis, CV min 50 chars, queries requises)
+  - Extraction automatique de keywords depuis le CV (35 tech keywords)
+  - Bouton "Use these as bonus keywords" pour appliquer les suggestions
+  - Skip optionnel sur étapes 4 (Keywords) et 5 (Notifications)
+  - Bordure rouge + message d'erreur sur champs invalides
+- **Performance & Monitoring** :
+  - `duration_seconds` par scraper dans `scrape_runs` (migration 012)
+  - Sentry breadcrumbs : start/fail par scraper dans `tasks.py`
+  - Endpoint `/api/scrape-runs/health` : taux de succès, durée moyenne, dernière erreur par source
+  - Modèle `ScraperHealthMetrics` dans l'API
+  - 13 nouveaux tests (`test_emails.py`)
+
 ---
 
 ## Prochaines étapes possibles
 
-### Emails transactionnels (Brevo)
-- Welcome email après onboarding
-- Weekly digest (top 5 jobs de la semaine)
-- Confirmation envoi candidature auto
-- Templates HTML dans `worker/emails.py`
+### Analytics avancées
+- Dashboard graphique : évolution score/semaine, sources les plus productives
+- Heatmap des heures de publication par source
+- Taux de conversion par source (scraped → interested → applied)
 
-### Onboarding amélioré
-- Indicateur de temps estimé ("~3 min")
-- Validation en temps réel
-- Suggestions keywords basées sur le CV
-- Skip optionnel des étapes non essentielles
+### Multi-CV / Profils de recherche
+- Plusieurs profils de recherche par utilisateur (ex: ML + Backend)
+- CV différent par profil
+- Scoring indépendant par profil
 
-### Scrapers Playwright — Tests d'intégration
-- Tests réels marqués `@pytest.mark.integration`
-- Vérifier que chaque scraper retourne des RawJob valides
-- Monitoring CAPTCHA/Cloudflare
+### Amélioration scraping
+- Rotation de proxies pour éviter les bans
+- Détection automatique CAPTCHA/Cloudflare avec fallback
+- Scraper LinkedIn (via JobSpy amélioré)
 
-### Performance & Monitoring
-- Dashboard Sentry : alerting sur erreurs scraper
-- Métriques : temps de scrape par source, taux de succès
-- Cache Redis pour les requêtes API fréquentes
+### Déploiement & DevOps
+- CI/CD GitHub Actions (ruff + pytest) sur PR
+- Healthcheck endpoint pour Render auto-restart
+- Backup automatique Supabase

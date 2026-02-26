@@ -102,6 +102,14 @@ async def run_cycle(cycle_count: int) -> int:
         except Exception as e:
             logger.error(f"Notion pull sync failed: {e}", exc_info=True)
 
+        # Phase 9: Transactional emails (welcome + weekly digest)
+        try:
+            from worker.emails import send_pending_welcome_emails, send_weekly_digests_all_users
+            await send_pending_welcome_emails()
+            await send_weekly_digests_all_users()
+        except Exception as e:
+            logger.error(f"Transactional emails failed: {e}", exc_info=True)
+
         cycle_count += 1
         await _update_heartbeat("running", cycle_count)
         logger.info(f"Worker cycle #{cycle_count} complete")
