@@ -14,14 +14,10 @@ from datetime import datetime, timezone
 import sentry_sdk
 
 from job_agent.scrapers.adzuna import AdzunaScraper
-from job_agent.scrapers.apec import APECScraper
 from job_agent.scrapers.base import RawJob
 from job_agent.scrapers.francetravail import FranceTravailScraper
-from job_agent.scrapers.freework import FreeWorkScraper
-from job_agent.scrapers.hellowork import HelloWorkScraper
 from job_agent.scrapers.jobspy import JobSpyScraper
 from job_agent.scrapers.remoteok import RemoteOKScraper
-from job_agent.scrapers.welovedevs import WeLoveDevsScraper
 from job_agent.scrapers.wttj import WTTJScraper
 
 from worker.config import SCRAPER_CONFIGS, get_settings
@@ -42,10 +38,12 @@ ALL_SCRAPERS = [
     ("adzuna", AdzunaScraper()),
     ("francetravail", FranceTravailScraper()),
     ("jobspy", JobSpyScraper()),
-    ("hellowork", HelloWorkScraper()),
-    ("apec", APECScraper()),
-    ("freework", FreeWorkScraper()),
-    ("welovedevs", WeLoveDevsScraper()),
+    # Playwright scrapers disabled — Chromium exceeds Render Starter 512MB RAM limit.
+    # Re-enable when upgrading to a plan with >= 1GB RAM.
+    # ("hellowork", HelloWorkScraper()),
+    # ("apec", APECScraper()),
+    # ("freework", FreeWorkScraper()),
+    # ("welovedevs", WeLoveDevsScraper()),
 ]
 
 

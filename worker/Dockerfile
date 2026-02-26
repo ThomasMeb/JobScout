@@ -5,19 +5,21 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
 
 RUN useradd -m -s /bin/bash jobscout
 
-# Install texlive for PDF generation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    texlive-base texlive-latex-extra texlive-fonts-recommended \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 # Install worker dependencies
 COPY worker/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright Chromium + OS deps for JS-rendered scraping
-RUN playwright install --with-deps chromium
+# Playwright disabled — Chromium exceeds Render Starter 512MB RAM.
+# Re-enable when upgrading plan:
+# RUN playwright install --with-deps chromium
+
+# texlive disabled — ~200MB for PDF generation, not critical for worker loop.
+# Re-enable when upgrading plan:
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     texlive-base texlive-latex-extra texlive-fonts-recommended \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Copy worker code + templates
 COPY worker/ /app/worker/
