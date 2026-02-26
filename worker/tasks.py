@@ -114,10 +114,22 @@ async def scrape_global():
 
         raw_jobs = None
         max_retries = 2
+        scraper_timeout = 120  # 2 minutes max per scraper attempt
         for attempt in range(max_retries + 1):
             try:
-                raw_jobs = await scraper.scrape(queries, locations, source_cfg)
+                raw_jobs = await asyncio.wait_for(
+                    scraper.scrape(queries, locations, source_cfg),
+                    timeout=scraper_timeout,
+                )
                 break
+            except asyncio.TimeoutError:
+                duration = time.monotonic() - t0
+                logger.error(f"Scraper {source_key} timed out after {scraper_timeout}s (attempt {attempt + 1})")
+                if attempt == max_retries:
+                    sentry_sdk.add_breadcrumb(
+                        category="scraper", message=f"{source_key} TIMEOUT in {duration:.1f}s", level="error",
+                    )
+                    _log_scrape_finish(sb, run_id, 0, 0, "timeout", f"Timed out after {scraper_timeout}s", duration)
             except Exception as e:
                 if attempt < max_retries:
                     wait = 5 * (attempt + 1)
