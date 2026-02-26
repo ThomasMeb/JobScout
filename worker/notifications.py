@@ -80,20 +80,12 @@ async def send_notifications():
                 total_email += 1
                 sent = True
 
-        # Telegram — use interactive bot if available, otherwise fallback to simple API
+        # Telegram — always use simple API (reliable), skip interactive bot
         if chat_id and has_telegram:
-            bot = _get_telegram_bot()
-            if bot:
-                from worker.telegram_bot import send_interactive_notifications
-                count = await send_interactive_notifications(user_id, chat_id, jobs, bot)
-                if count > 0:
-                    total_telegram += 1
-                    sent = True
-            else:
-                text = _build_telegram_message(name, jobs)
-                if await _send_telegram(settings.telegram_bot_token, chat_id, text):
-                    total_telegram += 1
-                    sent = True
+            text = _build_telegram_message(name, jobs)
+            if await _send_telegram(settings.telegram_bot_token, chat_id, text):
+                total_telegram += 1
+                sent = True
 
         if sent:
             job_ids = [j["id"] for j in jobs]
