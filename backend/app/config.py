@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # App
     environment: str = "development"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://localhost:3002"
 
     model_config = {"env_file": str(_ENV_FILE), "extra": "ignore"}
 

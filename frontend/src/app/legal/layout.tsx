@@ -1,13 +1,12 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
       <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-xl font-bold">
-            <span className="text-blue-600">Job</span>Scout
-          </Link>
+          <Link href="/"><Logo size="md" /></Link>
           <Link
             href="/login"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"

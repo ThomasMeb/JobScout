@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "JobScout — AI Job Matching",
   description: "AI-powered job matching, personalized for you",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

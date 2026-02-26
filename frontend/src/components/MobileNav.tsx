@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -16,9 +17,7 @@ export default function MobileNav() {
   return (
     <nav className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/dashboard" className="text-lg font-bold">
-          <span className="text-blue-600">Job</span>Scout
-        </Link>
+        <Link href="/dashboard"><Logo size="sm" /></Link>
 
         {/* Desktop links */}
         <div className="hidden items-center gap-4 md:flex">

@@ -54,6 +54,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState("");
 
   function parseList(str: string): string[] {
     return str
@@ -99,6 +100,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
   async function handleSubmit() {
     if (!validateStep(step)) return;
     setSaving(true);
+    setSubmitError("");
     try {
       await onSubmit({
         name: form.name,
@@ -115,6 +117,8 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         monthly_budget_usd: Number(form.monthly_budget_usd),
         ...(mode === "onboarding" ? { onboarding_completed: true } : {}),
       });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to save profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -350,6 +354,9 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     return (
       <div className="space-y-6">
         {steps.map((s) => s)}
+        {submitError && (
+          <p className="text-sm text-red-500">{submitError}</p>
+        )}
         <button
           onClick={handleSubmit}
           disabled={saving}
@@ -408,6 +415,10 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
             >
               Skip
             </button>
+          )}
+
+          {submitError && (
+            <p className="text-sm text-red-500">{submitError}</p>
           )}
 
           {step < steps.length - 1 ? (

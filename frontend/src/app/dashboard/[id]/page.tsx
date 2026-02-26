@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import { getJob, updateJobFeedback } from "@/lib/api";
 import type { Job } from "@/lib/types";
+import Logo from "@/components/Logo";
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,9 +65,7 @@ export default function JobDetailPage() {
             >
               &larr; Back
             </button>
-            <h1 className="text-lg font-bold">
-              <span className="text-blue-600">Job</span>Scout
-            </h1>
+            <Logo size="sm" />
           </div>
         </nav>
 

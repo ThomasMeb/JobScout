@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase-browser";
 
 export default function UpdatePasswordPage() {
@@ -39,9 +40,7 @@ export default function UpdatePasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-blue-600">Job</span>Scout
-          </Link>
+          <Link href="/"><Logo size="lg" /></Link>
           <p className="mt-2 text-gray-600 dark:text-gray-400">Set your new password</p>
         </div>
 
