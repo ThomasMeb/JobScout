@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function fetchAPI(path: string, options: RequestInit = {}) {
   const { createClient } = await import("./supabase-browser");
@@ -85,7 +85,7 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
     headers["Authorization"] = `Bearer ${session.access_token}`;
   }
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   const res = await fetch(`${API_URL}${path}`, { headers });
   if (!res.ok) throw new Error("Export failed");
 

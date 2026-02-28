@@ -1,0 +1,57 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend: { condition: service_healthy }
+    networks: [jobscout]
+
+  backend:
+    build: { context: ./backend }
+    env_file: .env.prod
+    expose: ["8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [jobscout]
+
+  worker:
+    build: { context: ., dockerfile: worker/Dockerfile }
+    env_file: .env.prod
+    restart: unless-stopped
+    depends_on:
+      backend: { condition: service_healthy }
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    networks: [jobscout]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_API_URL: ""
+    expose: ["3000"]
+    restart: unless-stopped
+    depends_on: [backend]
+    networks: [jobscout]
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  jobscout:
+    driver: bridge

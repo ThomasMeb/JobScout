@@ -11,9 +11,8 @@ WORKDIR /app
 COPY worker/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Playwright disabled — Chromium exceeds Render Starter 512MB RAM.
-# Re-enable when upgrading plan:
-# RUN playwright install --with-deps chromium
+# Playwright enabled — Hetzner VPS has 4GB RAM (sufficient for Chromium)
+RUN playwright install --with-deps chromium
 
 # texlive disabled — ~200MB for PDF generation, not critical for worker loop.
 # Re-enable when upgrading plan:
