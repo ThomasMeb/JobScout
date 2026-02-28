@@ -3,65 +3,65 @@ import Logo from "@/components/Logo";
 
 const plans = [
   {
-    name: "Free",
-    price: "$0",
-    period: "/month",
-    description: "Perfect to get started and explore the platform.",
-    cta: "Get started",
+    name: "Gratuit",
+    price: "0 $",
+    period: "/mois",
+    description: "Parfait pour démarrer et découvrir la plateforme.",
+    cta: "Commencer",
     ctaStyle: "border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900",
     popular: false,
     features: [
-      { text: "10 jobs scored per cycle", included: true },
-      { text: "Dashboard with filters", included: true },
-      { text: "Email notifications", included: true },
-      { text: "CSV export", included: true },
-      { text: "Telegram instant alerts", included: false },
-      { text: "Auto-apply pipeline", included: false },
-      { text: "Company research AI", included: false },
-      { text: "Priority support", included: false },
+      { text: "10 offres évaluées par cycle", included: true },
+      { text: "Tableau de bord avec filtres", included: true },
+      { text: "Notifications email", included: true },
+      { text: "Export CSV", included: true },
+      { text: "Alertes Telegram instantanées", included: false },
+      { text: "Candidature automatique", included: false },
+      { text: "Recherche entreprise IA", included: false },
+      { text: "Support prioritaire", included: false },
     ],
   },
   {
     name: "Pro",
-    price: "$9",
-    period: "/month",
-    description: "For active job seekers who want maximum automation.",
-    cta: "Start free trial",
+    price: "9 $",
+    period: "/mois",
+    description: "Pour les chercheurs d'emploi actifs qui veulent un maximum d'automatisation.",
+    cta: "Démarrer l'essai gratuit",
     ctaStyle: "bg-blue-600 text-white hover:bg-blue-700",
     popular: true,
     features: [
-      { text: "Unlimited job scoring", included: true },
-      { text: "Dashboard with filters", included: true },
-      { text: "Email notifications", included: true },
-      { text: "CSV export", included: true },
-      { text: "Telegram instant alerts", included: true },
-      { text: "Auto-apply pipeline", included: true },
-      { text: "Company research AI", included: true },
-      { text: "Priority support", included: true },
+      { text: "Évaluation illimitée des offres", included: true },
+      { text: "Tableau de bord avec filtres", included: true },
+      { text: "Notifications email", included: true },
+      { text: "Export CSV", included: true },
+      { text: "Alertes Telegram instantanées", included: true },
+      { text: "Candidature automatique", included: true },
+      { text: "Recherche entreprise IA", included: true },
+      { text: "Support prioritaire", included: true },
     ],
   },
 ];
 
 const faqs = [
   {
-    q: "How does the free trial work?",
-    a: "You get full Pro access for 14 days. No credit card required. At the end of the trial, you can choose to upgrade or continue with the Free plan.",
+    q: "Comment fonctionne l'essai gratuit ?",
+    a: "Vous bénéficiez d'un accès Pro complet pendant 14 jours. Aucune carte bancaire requise. À la fin de l'essai, vous pouvez choisir de passer à Pro ou de continuer avec le plan Gratuit.",
   },
   {
-    q: "Can I cancel anytime?",
-    a: "Yes, you can cancel your subscription at any time. You'll keep Pro access until the end of your current billing period.",
+    q: "Puis-je annuler à tout moment ?",
+    a: "Oui, vous pouvez annuler votre abonnement à tout moment. Vous conservez l'accès Pro jusqu'à la fin de votre période de facturation en cours.",
   },
   {
-    q: "Which job boards do you scrape?",
-    a: "We scrape Welcome to the Jungle, RemoteOK, Adzuna, France Travail, Indeed, LinkedIn, and more. New sources are added regularly.",
+    q: "Quels sites d'emploi sont parcourus ?",
+    a: "Nous parcourons Welcome to the Jungle, RemoteOK, Adzuna, France Travail, Indeed, LinkedIn et d'autres. De nouvelles sources sont ajoutées régulièrement.",
   },
   {
-    q: "How does AI scoring work?",
-    a: "Each job is scored 0-100 based on 5 criteria: skills match, experience level, location/remote fit, salary alignment, and job type preferences. Powered by DeepSeek AI.",
+    q: "Comment fonctionne le scoring IA ?",
+    a: "Chaque offre est notée de 0 à 100 selon 5 critères : correspondance des compétences, niveau d'expérience, adéquation lieu/télétravail, alignement salarial et préférences de type de poste. Propulsé par DeepSeek AI.",
   },
   {
-    q: "Is my data secure?",
-    a: "Your data is stored securely on Supabase (PostgreSQL) with row-level security. We never share your CV or personal information with third parties.",
+    q: "Mes données sont-elles en sécurité ?",
+    a: "Vos données sont stockées de manière sécurisée sur Supabase (PostgreSQL) avec une sécurité au niveau des lignes. Nous ne partageons jamais votre CV ni vos informations personnelles avec des tiers.",
   },
 ];
 
@@ -76,7 +76,7 @@ export default function PricingPage() {
             href="/login"
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            Get started
+            Commencer
           </Link>
         </div>
       </header>
@@ -85,9 +85,9 @@ export default function PricingPage() {
         <div className="mx-auto max-w-4xl">
           {/* Header */}
           <div className="mb-12 text-center">
-            <h2 className="mb-3 text-4xl font-bold">Simple, transparent pricing</h2>
+            <h2 className="mb-3 text-4xl font-bold">Des tarifs simples et transparents</h2>
             <p className="text-lg text-gray-600 dark:text-gray-400">
-              Start free, upgrade when you need more. Cancel anytime.
+              Commencez gratuitement, passez à Pro quand vous en avez besoin. Annulez à tout moment.
             </p>
           </div>
 
@@ -104,7 +104,7 @@ export default function PricingPage() {
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-0.5 text-xs font-medium text-white">
-                    Most popular
+                    Le plus populaire
                   </div>
                 )}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
@@ -139,7 +139,7 @@ export default function PricingPage() {
 
           {/* FAQ */}
           <div className="mt-20">
-            <h3 className="mb-8 text-center text-2xl font-bold">Frequently asked questions</h3>
+            <h3 className="mb-8 text-center text-2xl font-bold">Questions fréquentes</h3>
             <div className="space-y-6">
               {faqs.map((faq) => (
                 <div key={faq.q} className="rounded-lg border border-gray-200 p-6 dark:border-gray-800">
@@ -157,9 +157,9 @@ export default function PricingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <div className="text-sm text-gray-500">&copy; {new Date().getFullYear()} JobScout</div>
           <nav className="flex gap-6 text-sm text-gray-500">
-            <Link href="/legal/privacy" className="hover:text-gray-900 dark:hover:text-white">Privacy</Link>
-            <Link href="/legal/terms" className="hover:text-gray-900 dark:hover:text-white">Terms</Link>
-            <Link href="/legal/mentions" className="hover:text-gray-900 dark:hover:text-white">Legal</Link>
+            <Link href="/legal/privacy" className="hover:text-gray-900 dark:hover:text-white">Confidentialité</Link>
+            <Link href="/legal/terms" className="hover:text-gray-900 dark:hover:text-white">CGU</Link>
+            <Link href="/legal/mentions" className="hover:text-gray-900 dark:hover:text-white">Mentions légales</Link>
           </nav>
         </div>
       </footer>

@@ -71,13 +71,13 @@ export default function Charts() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <BarChart
-        title="Score distribution"
+        title="Répartition des scores"
         data={scoreBuckets}
         color="#3b82f6"
       />
       {dailyJobs.length > 0 && (
         <BarChart
-          title="Jobs scored (last 30 days)"
+          title="Offres analysées (30 derniers jours)"
           data={dailyJobs}
           color="#10b981"
         />

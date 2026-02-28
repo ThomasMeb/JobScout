@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const SOURCES = [
-  { value: "", label: "All sources" },
+  { value: "", label: "Toutes les sources" },
   { value: "wttj", label: "WTTJ" },
   { value: "remoteok", label: "RemoteOK" },
   { value: "adzuna", label: "Adzuna" },
@@ -47,11 +47,11 @@ export default function FilterBar({
         onChange={(e) => { setStatusFilter(e.target.value); onPageReset(); }}
         className={selectClass}
       >
-        <option value="">All statuses</option>
-        <option value="new">New</option>
-        <option value="interested">Interested</option>
-        <option value="applied">Applied</option>
-        <option value="rejected">Rejected</option>
+        <option value="">Tous les statuts</option>
+        <option value="new">Nouveau</option>
+        <option value="interested">Intéressé</option>
+        <option value="applied">Postulé</option>
+        <option value="rejected">Refusé</option>
       </select>
 
       <select
@@ -59,7 +59,7 @@ export default function FilterBar({
         onChange={(e) => { setMinScore(e.target.value ? Number(e.target.value) : ""); onPageReset(); }}
         className={selectClass}
       >
-        <option value="">Any score</option>
+        <option value="">Tout score</option>
         <option value="70">70+</option>
         <option value="50">50+</option>
         <option value="30">30+</option>
@@ -88,10 +88,10 @@ export default function FilterBar({
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 010 2H4a1 1 0 01-1-1zm4 6a1 1 0 011-1h8a1 1 0 010 2H8a1 1 0 01-1-1zm2 6a1 1 0 011-1h4a1 1 0 010 2h-4a1 1 0 01-1-1z" />
           </svg>
-          Filters{activeCount > 0 ? ` (${activeCount})` : ""}
+          Filtres{activeCount > 0 ? ` (${activeCount})` : ""}
         </button>
         <span className="text-sm text-gray-500">
-          {total} job{total !== 1 ? "s" : ""}
+          {total} offre{total !== 1 ? "s" : ""}
         </span>
       </div>
 
@@ -106,7 +106,7 @@ export default function FilterBar({
       <div className="hidden items-center gap-3 md:flex">
         {filters}
         <span className="text-sm text-gray-500">
-          {total} job{total !== 1 ? "s" : ""}
+          {total} offre{total !== 1 ? "s" : ""}
         </span>
       </div>
     </div>

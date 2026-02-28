@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobScout — AI Job Matching",
-  description: "AI-powered job matching, personalized for you",
+  title: "JobScout — Matching emploi par IA",
+  description: "Matching d'offres d'emploi par IA, personnalisé pour vous",
   icons: {
     icon: "/logo.svg",
   },
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

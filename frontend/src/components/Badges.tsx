@@ -26,13 +26,13 @@ export function StatusBadge({ status }: { status: string }) {
 
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] || colors.new}`}>
-      {status}
+      {{ new: "Nouveau", interested: "Intéressé", applied: "Postulé", rejected: "Refusé" }[status] || status}
     </span>
   );
 }
 
 export function RemoteBadge({ type }: { type: string }) {
-  if (type === "full") return <span className="text-xs text-green-600 dark:text-green-400">Remote</span>;
-  if (type === "partial") return <span className="text-xs text-blue-600 dark:text-blue-400">Hybrid</span>;
-  return <span className="text-xs text-gray-500 dark:text-gray-400">On-site</span>;
+  if (type === "full") return <span className="text-xs text-green-600 dark:text-green-400">Télétravail</span>;
+  if (type === "partial") return <span className="text-xs text-blue-600 dark:text-blue-400">Hybride</span>;
+  return <span className="text-xs text-gray-500 dark:text-gray-400">Sur site</span>;
 }

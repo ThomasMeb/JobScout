@@ -24,17 +24,17 @@ function StatCard({
 export default function StatsBar({ stats }: { stats: UserStats }) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-      <StatCard label="Total jobs" value={stats.total_jobs} />
-      <StatCard label="New" value={stats.new_jobs} color="text-blue-600" />
-      <StatCard label="Interested" value={stats.interested} color="text-green-600" />
-      <StatCard label="Applied" value={stats.applied} color="text-purple-600" />
+      <StatCard label="Total offres" value={stats.total_jobs} />
+      <StatCard label="Nouvelles" value={stats.new_jobs} color="text-blue-600" />
+      <StatCard label="Intéressé" value={stats.interested} color="text-green-600" />
+      <StatCard label="Postulé" value={stats.applied} color="text-purple-600" />
       <StatCard
-        label="Avg score"
+        label="Score moy."
         value={stats.avg_score ? `${stats.avg_score}/100` : "—"}
       />
       <StatCard
         label="Budget"
-        value={`$${stats.budget_remaining_usd.toFixed(2)}`}
+        value={`${stats.budget_remaining_usd.toFixed(2)} $`}
         color={stats.budget_remaining_usd < 1 ? "text-red-600" : "text-green-600"}
       />
     </div>

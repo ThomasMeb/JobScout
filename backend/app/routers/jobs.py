@@ -116,7 +116,7 @@ async def get_job(
         .execute()
     )
     if not result.data:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Offre non trouvée")
 
     row = result.data[0]
     raw = row.get("raw_jobs", {})
@@ -166,7 +166,7 @@ async def update_feedback(
         .execute()
     )
     if not result.data:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Offre non trouvée")
 
     # Fetch full job with raw_jobs join for response
     return await get_job(job_id, user_id, sb)
@@ -180,7 +180,7 @@ async def bulk_feedback(
 ):
     """Update status for multiple jobs at once."""
     if len(payload.job_ids) > 100:
-        raise HTTPException(status_code=400, detail="Max 100 jobs per bulk operation")
+        raise HTTPException(status_code=400, detail="Maximum 100 offres par opération groupée")
 
     updated = 0
     for job_id in payload.job_ids:

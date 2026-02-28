@@ -34,20 +34,20 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <Link href="/"><Logo size="lg" /></Link>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Reset your password</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Réinitialiser votre mot de passe</p>
         </div>
 
         {sent ? (
           <div className="text-center">
-            <p className="text-green-600">Check your email for a password reset link!</p>
+            <p className="text-green-600">Vérifiez votre email pour le lien de réinitialisation !</p>
             <Link href="/login" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-              Back to sign in
+              Retour à la connexion
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Enter your email address and we&apos;ll send you a link to reset your password.
+              Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
             </p>
             <input
               type="email"
@@ -62,14 +62,14 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send reset link"}
+              {loading ? "Envoi en cours..." : "Envoyer le lien de réinitialisation"}
             </button>
             {error && <p className="text-center text-sm text-red-600">{error}</p>}
             <Link
               href="/login"
               className="block text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             >
-              Back to sign in
+              Retour à la connexion
             </Link>
           </form>
         )}

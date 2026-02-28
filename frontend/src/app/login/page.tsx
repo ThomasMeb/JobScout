@@ -49,7 +49,7 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Check your email to confirm your account!");
+      setMessage("Vérifiez votre email pour confirmer votre compte !");
     }
     setLoading(false);
   }
@@ -67,7 +67,7 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Check your email for the login link!");
+      setMessage("Vérifiez votre email pour le lien de connexion !");
     }
     setLoading(false);
   }
@@ -85,7 +85,7 @@ export default function LoginPage() {
         <div className="text-center">
           <Link href="/"><Logo size="lg" /></Link>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            {mode === "signup" ? "Create your account" : "Sign in to your account"}
+            {mode === "signup" ? "Créez votre compte" : "Connectez-vous à votre compte"}
           </p>
         </div>
 
@@ -95,19 +95,19 @@ export default function LoginPage() {
             onClick={() => handleOAuth("google")}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
           >
-            Continue with Google
+            Continuer avec Google
           </button>
           <button
             onClick={() => handleOAuth("github")}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
           >
-            Continue with GitHub
+            Continuer avec GitHub
           </button>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-          <span className="text-xs text-gray-500">OR</span>
+          <span className="text-xs text-gray-500">OU</span>
           <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
         </div>
 
@@ -126,7 +126,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder="Mot de passe"
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
             />
@@ -135,14 +135,14 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Connexion..." : "Se connecter"}
             </button>
             <div className="flex justify-between text-xs text-gray-500">
               <button type="button" onClick={() => setMode("magic")} className="hover:text-gray-700 dark:hover:text-gray-300">
-                Use magic link
+                Utiliser un lien magique
               </button>
               <Link href="/forgot-password" className="hover:text-gray-700 dark:hover:text-gray-300">
-                Forgot password?
+                Mot de passe oublié ?
               </Link>
             </div>
           </form>
@@ -163,7 +163,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password (min 6 characters)"
+              placeholder="Mot de passe (min. 6 caractères)"
               required
               minLength={6}
               className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
@@ -173,14 +173,14 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? "Création du compte..." : "Créer un compte"}
             </button>
             <button
               type="button"
               onClick={() => setMode("magic")}
               className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             >
-              Use magic link instead
+              Utiliser un lien magique
             </button>
           </form>
         )}
@@ -201,20 +201,20 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send magic link"}
+              {loading ? "Envoi en cours..." : "Envoyer le lien magique"}
             </button>
             <button
               type="button"
               onClick={() => setMode("signin")}
               className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             >
-              Use password instead
+              Utiliser un mot de passe
             </button>
           </form>
         )}
 
         {message && (
-          <p className={`text-center text-sm ${message.includes("Check") ? "text-green-600" : "text-red-600"}`}>
+          <p className={`text-center text-sm ${message.includes("Vérifiez") ? "text-green-600" : "text-red-600"}`}>
             {message}
           </p>
         )}
@@ -223,16 +223,16 @@ export default function LoginPage() {
         <p className="text-center text-sm text-gray-500">
           {mode === "signup" ? (
             <>
-              Already have an account?{" "}
+              Vous avez déjà un compte ?{" "}
               <button onClick={() => setMode("signin")} className="text-blue-600 hover:underline">
-                Sign in
+                Se connecter
               </button>
             </>
           ) : (
             <>
-              Don&apos;t have an account?{" "}
+              Vous n&apos;avez pas de compte ?{" "}
               <button onClick={() => setMode("signup")} className="text-blue-600 hover:underline">
-                Sign up
+                S&apos;inscrire
               </button>
             </>
           )}

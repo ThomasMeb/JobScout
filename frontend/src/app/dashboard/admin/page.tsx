@@ -53,7 +53,7 @@ export default function AdminPage() {
         setScrapers(scrapersRes.scrapers || []);
         setMetrics(metricsRes);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load admin data");
+        setError(err instanceof Error ? err.message : "Erreur lors du chargement des données admin");
       } finally {
         setLoading(false);
       }
@@ -61,7 +61,7 @@ export default function AdminPage() {
     load();
   }, []);
 
-  if (loading) return <div className="p-8 text-gray-400">Loading admin data...</div>;
+  if (loading) return <div className="p-8 text-gray-400">Chargement des données admin...</div>;
   if (error) return <div className="p-8 text-red-400">{error}</div>;
 
   const statusColor = (status: string) => {
@@ -72,58 +72,58 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+      <h1 className="text-2xl font-bold text-white">Tableau de bord Admin</h1>
 
-      {/* Business Metrics */}
+      {/* Métriques business */}
       {metrics && (
         <section>
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Business Metrics</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Métriques business</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard label="Total Users" value={metrics.total_users} />
-            <MetricCard label="Pro Users" value={metrics.pro_users} />
-            <MetricCard label="Raw Jobs" value={metrics.total_raw_jobs} />
-            <MetricCard label="Scored Jobs" value={metrics.total_scored_jobs} />
+            <MetricCard label="Utilisateurs totaux" value={metrics.total_users} />
+            <MetricCard label="Utilisateurs Pro" value={metrics.pro_users} />
+            <MetricCard label="Offres brutes" value={metrics.total_raw_jobs} />
+            <MetricCard label="Offres évaluées" value={metrics.total_scored_jobs} />
           </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Worker Status</p>
+              <p className="text-sm text-gray-400">Statut du worker</p>
               <p className={`text-xl font-bold ${statusColor(metrics.worker_status)}`}>
                 {metrics.worker_status}
               </p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Worker Cycles</p>
+              <p className="text-sm text-gray-400">Cycles du worker</p>
               <p className="text-xl font-bold text-white">{metrics.worker_cycles}</p>
             </div>
             <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Last Cycle</p>
+              <p className="text-sm text-gray-400">Dernier cycle</p>
               <p className="text-sm text-white">
                 {metrics.worker_last_cycle
                   ? new Date(metrics.worker_last_cycle).toLocaleString()
-                  : "Never"}
+                  : "Jamais"}
               </p>
             </div>
           </div>
         </section>
       )}
 
-      {/* Scraper Health */}
+      {/* Santé des scrapers */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-200 mb-4">Scraper Health</h2>
+        <h2 className="text-lg font-semibold text-gray-200 mb-4">Santé des scrapers</h2>
         {scrapers.length === 0 ? (
-          <p className="text-gray-400">No scraper data available.</p>
+          <p className="text-gray-400">Aucune donnée de scraper disponible.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-gray-400 border-b border-gray-700">
                 <tr>
                   <th className="py-2 px-3">Source</th>
-                  <th className="py-2 px-3">Runs</th>
-                  <th className="py-2 px-3">Success Rate</th>
-                  <th className="py-2 px-3">Jobs Found</th>
-                  <th className="py-2 px-3">New Jobs</th>
-                  <th className="py-2 px-3">Last Run</th>
-                  <th className="py-2 px-3">Last Error</th>
+                  <th className="py-2 px-3">Exécutions</th>
+                  <th className="py-2 px-3">Taux de succès</th>
+                  <th className="py-2 px-3">Offres trouvées</th>
+                  <th className="py-2 px-3">Nouvelles offres</th>
+                  <th className="py-2 px-3">Dernière exécution</th>
+                  <th className="py-2 px-3">Dernière erreur</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,24 +160,24 @@ export default function AdminPage() {
         )}
       </section>
 
-      {/* Users */}
+      {/* Utilisateurs */}
       <section>
         <h2 className="text-lg font-semibold text-gray-200 mb-4">
-          Users ({users.length})
+          Utilisateurs ({users.length})
         </h2>
         {users.length === 0 ? (
-          <p className="text-gray-400">No users found.</p>
+          <p className="text-gray-400">Aucun utilisateur trouvé.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-gray-400 border-b border-gray-700">
                 <tr>
-                  <th className="py-2 px-3">Name</th>
+                  <th className="py-2 px-3">Nom</th>
                   <th className="py-2 px-3">Email</th>
                   <th className="py-2 px-3">Plan</th>
-                  <th className="py-2 px-3">Jobs</th>
-                  <th className="py-2 px-3">Onboarded</th>
-                  <th className="py-2 px-3">Joined</th>
+                  <th className="py-2 px-3">Offres</th>
+                  <th className="py-2 px-3">Configuré</th>
+                  <th className="py-2 px-3">Inscription</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,7 +200,7 @@ export default function AdminPage() {
                     </td>
                     <td className="py-2 px-3">{u.total_jobs}</td>
                     <td className="py-2 px-3">
-                      {u.onboarding_completed ? "Yes" : "No"}
+                      {u.onboarding_completed ? "Oui" : "Non"}
                     </td>
                     <td className="py-2 px-3 text-xs">
                       {new Date(u.created_at).toLocaleDateString()}

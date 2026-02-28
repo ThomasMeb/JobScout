@@ -75,15 +75,16 @@ async def send_notifications():
         # Email
         if email and has_email:
             html = _build_digest_html(name, jobs)
-            subject = f"JobScout: {len(jobs)} new job{'s' if len(jobs) > 1 else ''} matching your profile"
+            subject = f"JobScout : {len(jobs)} nouvelle{'s' if len(jobs) > 1 else ''} offre{'s' if len(jobs) > 1 else ''} correspondant à votre profil"
             if await _send_email(settings.resend_api_key, settings.notification_from_email, email, subject, html):
                 total_email += 1
                 sent = True
 
-        # Telegram — always use simple API (reliable), skip interactive bot
+        # Telegram — digest enrichi + bouton par offre pour détails interactifs
         if chat_id and has_telegram:
-            text = _build_telegram_message(name, jobs)
-            if await _send_telegram(settings.telegram_bot_token, chat_id, text):
+            text = _build_digest_text(name, jobs)
+            keyboard = _build_digest_keyboard(jobs)
+            if await _send_telegram(settings.telegram_bot_token, chat_id, text, reply_markup=keyboard):
                 total_telegram += 1
                 sent = True
 
@@ -98,14 +99,16 @@ async def send_notifications():
         logger.info(f"Notifications sent: {total_email} emails, {total_telegram} telegram")
 
 
-def _get_telegram_bot():
-    """Try to get the running bot instance."""
-    try:
-        from worker.telegram_bot import get_bot
-        return get_bot()
-    except Exception as e:
-        logger.warning(f"Failed to get Telegram bot instance: {e}")
-        return None
+def _format_salary(raw: dict) -> str:
+    """Format salary range for display."""
+    s_min = raw.get("salary_min")
+    s_max = raw.get("salary_max")
+    currency = raw.get("salary_currency", "EUR")
+    if s_min and s_max:
+        return f"{s_min // 1000}K-{s_max // 1000}K {currency}" if s_min >= 1000 else f"{s_min}-{s_max} {currency}"
+    if s_min:
+        return f"{s_min // 1000}K+ {currency}" if s_min >= 1000 else f"{s_min}+ {currency}"
+    return ""
 
 
 def _build_digest_html(name: str, jobs: list[dict]) -> str:
@@ -138,58 +141,111 @@ def _build_digest_html(name: str, jobs: list[dict]) -> str:
 
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#1e40af">Hi {name},</h2>
-      <p>Here are your latest job matches:</p>
+      <h2 style="color:#1e40af">Bonjour {name},</h2>
+      <p>Voici vos dernières offres correspondantes :</p>
       <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px">
         <thead>
           <tr style="background:#f9fafb">
             <th style="padding:8px;text-align:center;width:60px">Score</th>
-            <th style="padding:8px;text-align:left">Job</th>
-            <th style="padding:8px;text-align:left">Keywords</th>
+            <th style="padding:8px;text-align:left">Offre</th>
+            <th style="padding:8px;text-align:left">Mots-clés</th>
           </tr>
         </thead>
         <tbody>{rows}</tbody>
       </table>
       <p style="margin-top:20px;font-size:13px;color:#9ca3af">
-        — JobScout | <a href="#" style="color:#6b7280">Unsubscribe</a>
+        — JobScout | <a href="#" style="color:#6b7280">Se désabonner</a>
       </p>
     </div>"""
 
 
-def _build_telegram_message(name: str, jobs: list[dict]) -> str:
-    """Build a Telegram digest message with Markdown (fallback when bot not running)."""
-    lines = [f"*Hi {name}, {len(jobs)} new job{'s' if len(jobs) > 1 else ''}:*\n"]
-    for job in jobs[:10]:
+def _parse_keywords(value) -> list[str]:
+    """Parse keywords from string or list."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except Exception:
+            return []
+    return []
+
+
+def _build_digest_text(name: str, jobs: list[dict]) -> str:
+    """Build an enriched digest message listing all jobs with details."""
+    lines = [f"📬 *{name}, {len(jobs)} nouvelle{'s' if len(jobs) > 1 else ''} offre{'s' if len(jobs) > 1 else ''}*"]
+    for job in jobs:
         raw = job.get("raw_jobs", {})
         score = job.get("match_score", 0)
+        priority = (job.get("match_priority") or "low").lower()
+        emoji = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(priority, "⚪")
+        salary = _format_salary(raw)
+        location = raw.get("location") or ""
+        remote = raw.get("remote_type", "")
+        remote_label = {"full": "🏠 Télétravail", "partial": "🔀 Hybride", "office": "🏢 Sur site"}.get(remote, "")
+        match_kw = _parse_keywords(job.get("match_keywords"))
+        missing_kw = _parse_keywords(job.get("missing_keywords"))
+        source_url = raw.get("source_url", "")
+
         title = raw.get("title", "N/A")
-        company = raw.get("company", "")
-        url = raw.get("source_url", "")
-        priority = job.get("match_priority", "low")
-        emoji = {"high": "🟢", "medium": "🟡", "low": "⚪"}.get(priority, "⚪")
-        link = f"[{title}]({url})" if url else title
-        lines.append(f"{emoji} *{score:.0f}* — {link}\n_{company}_")
+        link = f"[{title}]({source_url})" if source_url else title
 
-    if len(jobs) > 10:
-        lines.append(f"\n_...and {len(jobs) - 10} more_")
+        block = f"{emoji} *{score:.0f}/100* — {link}"
+        block += f"\n🏢 {raw.get('company', 'N/A')}"
+        meta = []
+        if location:
+            meta.append(f"📍 {location}")
+        if remote_label:
+            meta.append(remote_label)
+        if salary:
+            meta.append(f"💰 {salary}")
+        if meta:
+            block += f"\n{' · '.join(meta)}"
+        if match_kw:
+            block += f"\n✅ {', '.join(match_kw[:6])}"
+        if missing_kw:
+            block += f"\n❌ {', '.join(missing_kw[:4])}"
 
-    return "\n".join(lines)
+        lines.append(block)
+
+    lines.append("⬇️ _Clique sur une offre pour interagir_")
+    return "\n\n".join(lines)
 
 
-async def _send_telegram(bot_token: str, chat_id: str, text: str) -> bool:
-    """Send message via Telegram Bot API (simple fallback)."""
+def _build_digest_keyboard(jobs: list[dict]) -> dict:
+    """Build inline keyboard with detail button + link per job."""
+    buttons = []
+    for job in jobs:
+        raw = job.get("raw_jobs", {})
+        score = job.get("match_score", 0)
+        priority = (job.get("match_priority") or "low").lower()
+        emoji = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(priority, "⚪")
+        title = raw.get("title", "N/A")
+        if len(title) > 30:
+            title = title[:27] + "..."
+        label = f"{emoji} {score:.0f} — {title}"
+        source_url = raw.get("source_url", "")
+        row = [{"text": label, "callback_data": f"detail_{job['id']}"}]
+        if source_url:
+            row.append({"text": "🔗", "url": source_url})
+        buttons.append(row)
+    return {"inline_keyboard": buttons}
+
+
+async def _send_telegram(bot_token: str, chat_id: str, text: str, reply_markup: dict | None = None) -> bool:
+    """Send message via Telegram Bot API with optional inline keyboard."""
     url = TELEGRAM_API_URL.format(token=bot_token)
     async with httpx.AsyncClient(timeout=15) as client:
         try:
-            resp = await client.post(
-                url,
-                json={
-                    "chat_id": chat_id,
-                    "text": text,
-                    "parse_mode": "Markdown",
-                    "disable_web_page_preview": True,
-                },
-            )
+            payload = {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": True,
+            }
+            if reply_markup:
+                payload["reply_markup"] = json.dumps(reply_markup)
+            resp = await client.post(url, json=payload)
             if resp.status_code == 200:
                 return True
             logger.error(f"Telegram API error {resp.status_code}: {resp.text}")

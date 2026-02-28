@@ -19,7 +19,7 @@ export default function UpdatePasswordPage() {
     setMessage("");
 
     if (password !== confirm) {
-      setMessage("Passwords do not match.");
+      setMessage("Les mots de passe ne correspondent pas.");
       return;
     }
 
@@ -30,7 +30,7 @@ export default function UpdatePasswordPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Password updated successfully!");
+      setMessage("Mot de passe mis à jour avec succès !");
       setTimeout(() => router.push("/dashboard"), 1500);
     }
     setLoading(false);
@@ -41,7 +41,7 @@ export default function UpdatePasswordPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <Link href="/"><Logo size="lg" /></Link>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Set your new password</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Définissez votre nouveau mot de passe</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -49,7 +49,7 @@ export default function UpdatePasswordPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="New password (min 6 characters)"
+            placeholder="Nouveau mot de passe (min. 6 caractères)"
             required
             minLength={6}
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
@@ -58,7 +58,7 @@ export default function UpdatePasswordPage() {
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Confirm new password"
+            placeholder="Confirmer le nouveau mot de passe"
             required
             minLength={6}
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
@@ -68,12 +68,12 @@ export default function UpdatePasswordPage() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Updating..." : "Update password"}
+            {loading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
           </button>
         </form>
 
         {message && (
-          <p className={`text-center text-sm ${message.includes("success") ? "text-green-600" : "text-red-600"}`}>
+          <p className={`text-center text-sm ${message.includes("succès") ? "text-green-600" : "text-red-600"}`}>
             {message}
           </p>
         )}

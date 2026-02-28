@@ -116,14 +116,14 @@ export default function DashboardPage() {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search jobs..."
+              placeholder="Rechercher des offres..."
               className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
             />
             <button
               type="submit"
               className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
             >
-              Search
+              Rechercher
             </button>
             {searchQuery && (
               <button
@@ -131,7 +131,7 @@ export default function DashboardPage() {
                 onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}
                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
               >
-                Clear
+                Effacer
               </button>
             )}
           </form>
@@ -153,25 +153,25 @@ export default function DashboardPage() {
             {selected.size > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950">
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  {selected.size} selected
+                  {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
                 </span>
                 <button
                   onClick={() => handleBulkAction("interested")}
                   className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-green-700"
                 >
-                  Interested
+                  Intéressé
                 </button>
                 <button
                   onClick={() => handleBulkAction("rejected")}
                   className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-red-700"
                 >
-                  Reject
+                  Refuser
                 </button>
                 <button
                   onClick={() => handleBulkAction("new")}
                   className="rounded bg-gray-500 px-2 py-0.5 text-xs font-medium text-white hover:bg-gray-600"
                 >
-                  Reset
+                  Réinitialiser
                 </button>
               </div>
             )}
@@ -183,7 +183,7 @@ export default function DashboardPage() {
               })}
               className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
             >
-              Export CSV
+              Exporter CSV
             </button>
           </div>
 
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                 {jobs.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      No jobs found.
+                      Aucune offre trouvée.
                     </p>
                   </div>
                 ) : (
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                 disabled={page <= 1}
                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
               >
-                Previous
+                Précédent
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {page} / {totalPages}
@@ -246,7 +246,7 @@ export default function DashboardPage() {
                 disabled={page >= totalPages}
                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
               >
-                Next
+                Suivant
               </button>
             </div>
           )}

@@ -73,15 +73,15 @@ export default function BillingPage() {
           <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400">
-                &larr; Dashboard
+                &larr; Tableau de bord
               </Link>
-              <h1 className="text-lg font-bold">Billing</h1>
+              <h1 className="text-lg font-bold">Abonnement</h1>
             </div>
             <Link
               href="/settings"
               className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
             >
-              Settings
+              Paramètres
             </Link>
           </div>
         </nav>
@@ -89,7 +89,7 @@ export default function BillingPage() {
         <div className="mx-auto max-w-2xl space-y-8 px-6 py-8">
           {/* Current Plan */}
           <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-            <h2 className="mb-1 text-lg font-semibold">Current plan</h2>
+            <h2 className="mb-1 text-lg font-semibold">Plan actuel</h2>
             <div className="flex items-center gap-3">
               <span className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
                 isPro
@@ -98,19 +98,19 @@ export default function BillingPage() {
                     ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                     : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
               }`}>
-                {isPro ? "Pro" : isTrial ? "Trial" : "Free"}
+                {isPro ? "Pro" : isTrial ? "Essai" : "Gratuit"}
               </span>
-              {isPro && <span className="text-sm text-gray-500">$9/month</span>}
+              {isPro && <span className="text-sm text-gray-500">9 $/mois</span>}
               {isTrial && billing?.trial_started_at && (
                 <span className="text-sm text-gray-500">
-                  Trial started {new Date(billing.trial_started_at).toLocaleDateString()}
+                  Essai démarré le {new Date(billing.trial_started_at).toLocaleDateString()}
                 </span>
               )}
             </div>
 
             {billing?.plan_expires_at && (
               <p className="mt-2 text-sm text-yellow-600">
-                Expires: {new Date(billing.plan_expires_at).toLocaleDateString()}
+                Expire le : {new Date(billing.plan_expires_at).toLocaleDateString()}
               </p>
             )}
 
@@ -121,7 +121,7 @@ export default function BillingPage() {
                   disabled={actionLoading}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-900"
                 >
-                  {actionLoading ? "Loading..." : "Manage subscription"}
+                  {actionLoading ? "Chargement..." : "Gérer l'abonnement"}
                 </button>
               ) : (
                 <button
@@ -129,7 +129,7 @@ export default function BillingPage() {
                   disabled={actionLoading}
                   className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {actionLoading ? "Loading..." : "Upgrade to Pro — $9/month"}
+                  {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
                 </button>
               )}
             </div>
@@ -138,23 +138,23 @@ export default function BillingPage() {
           {/* Usage */}
           {stats && (
             <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-              <h2 className="mb-4 text-lg font-semibold">Usage this month</h2>
+              <h2 className="mb-4 text-lg font-semibold">Utilisation ce mois-ci</h2>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <div className="text-2xl font-bold">{stats.total_jobs}</div>
-                  <div className="text-sm text-gray-500">Jobs scored</div>
+                  <div className="text-sm text-gray-500">Offres évaluées</div>
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{stats.applied}</div>
-                  <div className="text-sm text-gray-500">Applications</div>
+                  <div className="text-sm text-gray-500">Candidatures</div>
                 </div>
                 <div>
                   <div className="text-2xl font-bold">${stats.monthly_cost_usd.toFixed(2)}</div>
-                  <div className="text-sm text-gray-500">AI cost</div>
+                  <div className="text-sm text-gray-500">Coût IA</div>
                 </div>
                 <div>
                   <div className="text-2xl font-bold">${stats.budget_remaining_usd.toFixed(2)}</div>
-                  <div className="text-sm text-gray-500">Budget remaining</div>
+                  <div className="text-sm text-gray-500">Budget restant</div>
                 </div>
               </div>
             </div>
@@ -163,22 +163,22 @@ export default function BillingPage() {
           {/* Plan comparison */}
           {!isPro && (
             <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-              <h2 className="mb-4 text-lg font-semibold">Why upgrade to Pro?</h2>
+              <h2 className="mb-4 text-lg font-semibold">Pourquoi passer à Pro ?</h2>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Unlimited job scoring (vs 10/cycle on Free)
+                  <span className="text-green-600">&#10003;</span> Évaluation illimitée des offres (vs 10/cycle en Gratuit)
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Telegram instant notifications
+                  <span className="text-green-600">&#10003;</span> Notifications Telegram instantanées
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Auto-apply pipeline (CV + cover letter)
+                  <span className="text-green-600">&#10003;</span> Candidature automatique (CV + lettre de motivation)
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Company research AI
+                  <span className="text-green-600">&#10003;</span> Recherche entreprise IA
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Priority support
+                  <span className="text-green-600">&#10003;</span> Support prioritaire
                 </li>
               </ul>
               <button
@@ -186,7 +186,7 @@ export default function BillingPage() {
                 disabled={actionLoading}
                 className="mt-6 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {actionLoading ? "Loading..." : "Upgrade to Pro — $9/month"}
+                {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
               </button>
             </div>
           )}

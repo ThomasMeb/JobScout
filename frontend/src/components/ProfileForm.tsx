@@ -10,10 +10,10 @@ interface ProfileFormProps {
 }
 
 const STEP_META = [
-  { label: "Profile", time: "~1 min", required: true },
-  { label: "Search", time: "~30s", required: true },
-  { label: "Location", time: "~30s", required: true },
-  { label: "Keywords", time: "~30s", required: false },
+  { label: "Profil", time: "~1 min", required: true },
+  { label: "Recherche", time: "~30s", required: true },
+  { label: "Localisation", time: "~30s", required: true },
+  { label: "Mots-clés", time: "~30s", required: false },
   { label: "Notifications", time: "~30s", required: false },
 ];
 
@@ -67,12 +67,12 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
   function validateStep(s: number): boolean {
     const newErrors: Record<string, string> = {};
     if (s === 0) {
-      if (!form.name.trim()) newErrors.name = "Name is required";
+      if (!form.name.trim()) newErrors.name = "Le nom est requis";
       if (!form.cv_text.trim() || form.cv_text.trim().length < 50)
-        newErrors.cv_text = "Please paste your CV (at least 50 characters)";
+        newErrors.cv_text = "Veuillez coller votre CV (au moins 50 caractères)";
     } else if (s === 1) {
       if (!form.search_queries.trim())
-        newErrors.search_queries = "At least one search query is required";
+        newErrors.search_queries = "Au moins une requête de recherche est requise";
     }
     // Steps 2-4 are optional or have defaults
     setErrors(newErrors);
@@ -118,7 +118,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         ...(mode === "onboarding" ? { onboarding_completed: true } : {}),
       });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to save profile. Please try again.");
+      setSubmitError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde. Veuillez réessayer.");
     } finally {
       setSaving(false);
     }
@@ -134,9 +134,9 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
   const steps = [
     // Step 0: Name + CV
     <div key="cv" className="space-y-4">
-      <h2 className="text-xl font-semibold">Your profile</h2>
+      <h2 className="text-xl font-semibold">Votre profil</h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">Name</label>
+        <label className="mb-1 block text-sm font-medium">Nom</label>
         <input
           type="text"
           value={form.name}
@@ -145,12 +145,12 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
             if (errors.name) setErrors({ ...errors, name: "" });
           }}
           className={inputClass("name")}
-          placeholder="John Doe"
+          placeholder="Jean Dupont"
         />
         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">CV / Resume (paste text)</label>
+        <label className="mb-1 block text-sm font-medium">CV (collez le texte)</label>
         <textarea
           value={form.cv_text}
           onChange={(e) => {
@@ -159,21 +159,21 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           }}
           rows={10}
           className={`${inputClass("cv_text")} font-mono text-sm`}
-          placeholder="Paste your CV text here..."
+          placeholder="Collez le texte de votre CV ici..."
         />
         {errors.cv_text && <p className="mt-1 text-xs text-red-500">{errors.cv_text}</p>}
         {form.cv_text.length > 0 && (
-          <p className="mt-1 text-xs text-gray-400">{form.cv_text.length} characters</p>
+          <p className="mt-1 text-xs text-gray-400">{form.cv_text.length} caractères</p>
         )}
       </div>
     </div>,
 
     // Step 1: Search queries
     <div key="queries" className="space-y-4">
-      <h2 className="text-xl font-semibold">Job search</h2>
+      <h2 className="text-xl font-semibold">Recherche d&apos;emploi</h2>
       <div>
         <label className="mb-1 block text-sm font-medium">
-          Search queries (comma-separated)
+          Requêtes de recherche (séparées par des virgules)
         </label>
         <input
           type="text"
@@ -183,23 +183,23 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
             if (errors.search_queries) setErrors({ ...errors, search_queries: "" });
           }}
           className={inputClass("search_queries")}
-          placeholder="ML Engineer, Data Scientist, AI Engineer"
+          placeholder="Ingénieur ML, Data Scientist, Ingénieur IA"
         />
         {errors.search_queries && (
           <p className="mt-1 text-xs text-red-500">{errors.search_queries}</p>
         )}
         <p className="mt-1 text-xs text-gray-500">
-          These are used to search job boards. Add all relevant job titles.
+          Ces termes sont utilisés pour chercher sur les sites d&apos;emploi. Ajoutez tous les titres de poste pertinents.
         </p>
       </div>
     </div>,
 
     // Step 2: Locations + remote
     <div key="locations" className="space-y-4">
-      <h2 className="text-xl font-semibold">Location preferences</h2>
+      <h2 className="text-xl font-semibold">Préférences de localisation</h2>
       <div>
         <label className="mb-1 block text-sm font-medium">
-          Locations (comma-separated)
+          Localisations (séparées par des virgules)
         </label>
         <input
           type="text"
@@ -217,10 +217,10 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           onChange={(e) => setForm({ ...form, remote_accepted: e.target.checked })}
           className="h-4 w-4 rounded border-gray-300"
         />
-        <label htmlFor="remote" className="text-sm">Accept remote positions</label>
+        <label htmlFor="remote" className="text-sm">Accepter les postes en télétravail</label>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Minimum salary (EUR/year)</label>
+        <label className="mb-1 block text-sm font-medium">Salaire minimum (EUR/an)</label>
         <input
           type="number"
           value={form.min_salary}
@@ -234,13 +234,13 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     // Step 3: Keywords (optional)
     <div key="keywords" className="space-y-4">
       <h2 className="text-xl font-semibold">
-        Keywords
-        <span className="ml-2 text-sm font-normal text-gray-400">(optional)</span>
+        Mots-clés
+        <span className="ml-2 text-sm font-normal text-gray-400">(optionnel)</span>
       </h2>
       {suggestedKeywords.length > 0 && !form.bonus_keywords.trim() && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
           <p className="mb-2 text-sm font-medium text-blue-700 dark:text-blue-300">
-            Keywords detected in your CV:
+            Mots-clés détectés dans votre CV :
           </p>
           <div className="mb-2 flex flex-wrap gap-1">
             {suggestedKeywords.slice(0, 12).map((kw) => (
@@ -257,12 +257,12 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
             onClick={applySuggestions}
             className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
           >
-            Use these as bonus keywords
+            Utiliser comme mots-clés bonus
           </button>
         </div>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Bonus keywords</label>
+        <label className="mb-1 block text-sm font-medium">Mots-clés bonus</label>
         <input
           type="text"
           value={form.bonus_keywords}
@@ -270,10 +270,10 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           className={inputClass("bonus_keywords")}
           placeholder="python, machine learning, pytorch, docker"
         />
-        <p className="mt-1 text-xs text-gray-500">Jobs with these keywords get a score boost.</p>
+        <p className="mt-1 text-xs text-gray-500">Les offres contenant ces mots-clés obtiennent un bonus de score.</p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Penalty keywords</label>
+        <label className="mb-1 block text-sm font-medium">Mots-clés pénalisants</label>
         <input
           type="text"
           value={form.penalty_keywords}
@@ -281,18 +281,18 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           className={inputClass("penalty_keywords")}
           placeholder="Java, .NET, 10+ years, PhD required"
         />
-        <p className="mt-1 text-xs text-gray-500">Jobs with these keywords get a score penalty.</p>
+        <p className="mt-1 text-xs text-gray-500">Les offres contenant ces mots-clés reçoivent une pénalité de score.</p>
       </div>
     </div>,
 
     // Step 4: Notifications & Budget (optional)
     <div key="notifications" className="space-y-4">
       <h2 className="text-xl font-semibold">
-        Notifications & budget
-        <span className="ml-2 text-sm font-normal text-gray-400">(optional)</span>
+        Notifications et budget
+        <span className="ml-2 text-sm font-normal text-gray-400">(optionnel)</span>
       </h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">Notification email</label>
+        <label className="mb-1 block text-sm font-medium">Email de notification</label>
         <input
           type="email"
           value={form.notification_email}
@@ -301,7 +301,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           placeholder="you@example.com"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Receive email digests when new high-scoring jobs are found. Leave empty to disable.
+          Recevez un résumé par email quand de nouvelles offres à haut score sont trouvées. Laissez vide pour désactiver.
         </p>
       </div>
       <div>
@@ -314,11 +314,11 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           placeholder="123456789"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Get Telegram notifications. Message @userinfobot to find your Chat ID. Leave empty to disable.
+          Recevez des notifications Telegram. Envoyez un message à @userinfobot pour trouver votre Chat ID. Laissez vide pour désactiver.
         </p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Minimum score for notifications</label>
+        <label className="mb-1 block text-sm font-medium">Score minimum pour les notifications</label>
         <input
           type="number"
           value={form.min_score_notify}
@@ -329,11 +329,11 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           placeholder="70"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Only jobs scoring above this threshold will be included in email digests.
+          Seules les offres dépassant ce seuil seront incluses dans les résumés email.
         </p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Monthly AI budget (USD)</label>
+        <label className="mb-1 block text-sm font-medium">Budget IA mensuel (USD)</label>
         <input
           type="number"
           value={form.monthly_budget_usd}
@@ -344,7 +344,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           placeholder="5.00"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Monthly limit for AI job scoring. Scoring pauses when the budget is reached. Default: $5.
+          Limite mensuelle pour le scoring IA des offres. Le scoring se met en pause quand le budget est atteint. Par défaut : 5 $.
         </p>
       </div>
     </div>,
@@ -362,7 +362,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           disabled={saving}
           className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save settings"}
+          {saving ? "Sauvegarde..." : "Enregistrer"}
         </button>
       </div>
     );
@@ -376,7 +376,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
       {/* Header with time estimate */}
       <div className="flex items-center justify-between text-sm text-gray-500">
         <span>
-          Step {step + 1} of {steps.length} — {STEP_META[step]?.label}
+          Étape {step + 1} sur {steps.length} — {STEP_META[step]?.label}
         </span>
         <span>{STEP_META[step]?.time}</span>
       </div>
@@ -401,7 +401,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
             onClick={() => setStep(step - 1)}
             className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
           >
-            Back
+            Retour
           </button>
         ) : (
           <div />
@@ -413,7 +413,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
               onClick={() => setStep(step + 1)}
               className="rounded-lg border border-gray-300 px-4 py-2 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
             >
-              Skip
+              Passer
             </button>
           )}
 
@@ -426,7 +426,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
               onClick={handleNext}
               className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
             >
-              Next
+              Suivant
             </button>
           ) : (
             <button
@@ -434,7 +434,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
               disabled={saving}
               className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Complete setup"}
+              {saving ? "Sauvegarde..." : "Terminer la configuration"}
             </button>
           )}
         </div>

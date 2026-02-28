@@ -21,7 +21,7 @@ async def get_profile(
     """Get the current user's profile."""
     result = sb.table("profiles").select("*").eq("id", user_id).execute()
     if not result.data:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=404, detail="Profil non trouvé")
     return ProfileRead(**result.data[0])
 
 
@@ -34,7 +34,7 @@ async def update_profile(
     """Update the current user's profile."""
     data = updates.model_dump(exclude_none=True)
     if not data:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
 
     result = (
         sb.table("profiles")
@@ -43,7 +43,7 @@ async def update_profile(
         .execute()
     )
     if not result.data:
-        raise HTTPException(status_code=404, detail="Profile not found")
+        raise HTTPException(status_code=404, detail="Profil non trouvé")
     return ProfileRead(**result.data[0])
 
 

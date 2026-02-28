@@ -5,10 +5,10 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard", label: "Tableau de bord" },
   { href: "/dashboard/admin", label: "Admin" },
-  { href: "/dashboard/billing", label: "Billing" },
-  { href: "/settings", label: "Settings" },
+  { href: "/dashboard/billing", label: "Abonnement" },
+  { href: "/settings", label: "Paramètres" },
 ];
 
 export default function MobileNav() {

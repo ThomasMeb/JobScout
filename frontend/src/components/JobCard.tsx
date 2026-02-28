@@ -73,13 +73,13 @@ export default function JobCard({
               onClick={() => handleFeedback("interested")}
               className="flex-1 rounded-lg bg-green-600 py-1.5 text-xs font-medium text-white hover:bg-green-700"
             >
-              Interested
+              Intéressé
             </button>
             <button
               onClick={() => handleFeedback("rejected")}
               className="flex-1 rounded-lg bg-gray-200 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
-              Reject
+              Refuser
             </button>
           </>
         )}
@@ -93,7 +93,7 @@ export default function JobCard({
             }`}
             style={job.status !== "new" ? {} : { padding: "0 12px" }}
           >
-            View
+            Voir
           </a>
         )}
       </div>

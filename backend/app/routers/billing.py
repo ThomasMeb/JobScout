@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/billing", tags=["billing"])
 def _get_stripe():
     settings = get_settings()
     if not settings.stripe_secret_key:
-        raise HTTPException(status_code=503, detail="Billing not configured")
+        raise HTTPException(status_code=503, detail="Facturation non configurée")
     stripe.api_key = settings.stripe_secret_key
     return stripe
 
@@ -108,7 +108,7 @@ async def create_portal(
     )
     customer_id = (profile.data or {}).get("stripe_customer_id")
     if not customer_id:
-        raise HTTPException(status_code=400, detail="No billing account found")
+        raise HTTPException(status_code=400, detail="Aucun compte de facturation trouvé")
 
     session = s.billing_portal.Session.create(
         customer=customer_id,
@@ -123,7 +123,7 @@ async def stripe_webhook(request: Request):
     """Handle Stripe webhook events."""
     settings = get_settings()
     if not settings.stripe_webhook_secret:
-        raise HTTPException(status_code=503, detail="Webhook not configured")
+        raise HTTPException(status_code=503, detail="Webhook non configuré")
 
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
@@ -134,7 +134,7 @@ async def stripe_webhook(request: Request):
             payload, sig_header, settings.stripe_webhook_secret
         )
     except (ValueError, stripe.error.SignatureVerificationError):
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        raise HTTPException(status_code=400, detail="Signature invalide")
 
     sb = _get_admin_sb()
     event_type = event["type"]

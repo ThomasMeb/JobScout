@@ -22,7 +22,7 @@ def _require_admin(user_id: Annotated[str, Depends(get_current_user_id)]) -> str
     sb = _get_admin_sb()
     row = sb.table("profiles").select("is_admin").eq("id", user_id).maybe_single().execute()
     if not row.data or not row.data.get("is_admin"):
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=403, detail="Accès administrateur requis")
     return user_id
 
 

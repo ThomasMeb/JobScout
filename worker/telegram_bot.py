@@ -478,6 +478,86 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(f"❌ {company.data['name']} — ignoré")
         return
 
+    # Detail view — show full job info + action buttons
+    if action == "detail":
+        uj = (
+            sb.table("user_jobs")
+            .select("id, match_score, match_priority, match_keywords, missing_keywords, match_reasoning, "
+                    "raw_jobs(title, company, location, remote_type, salary_min, salary_max, "
+                    "salary_currency, source, source_url, apply_url)")
+            .eq("id", item_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+        if not uj.data:
+            await query.edit_message_text("Offre introuvable.")
+            return
+        raw = uj.data.get("raw_jobs", {})
+        score = uj.data.get("match_score", 0)
+        priority = (uj.data.get("match_priority") or "low").upper()
+        emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "⚪"}.get(priority, "⚪")
+
+        match_kw = uj.data.get("match_keywords") or []
+        if isinstance(match_kw, str):
+            try:
+                match_kw = json.loads(match_kw)
+            except Exception:
+                match_kw = []
+        missing_kw = uj.data.get("missing_keywords") or []
+        if isinstance(missing_kw, str):
+            try:
+                missing_kw = json.loads(missing_kw)
+            except Exception:
+                missing_kw = []
+        reasoning = uj.data.get("match_reasoning", "")
+
+        location = raw.get("location") or "Non précisé"
+        remote = raw.get("remote_type", "")
+        remote_label = {"full": "Full remote", "partial": "Hybride", "office": "Sur site"}.get(remote, "")
+        s_min = raw.get("salary_min")
+        s_max = raw.get("salary_max")
+        currency = raw.get("salary_currency", "EUR")
+        salary = ""
+        if s_min and s_max:
+            salary = f"{s_min // 1000}K-{s_max // 1000}K {currency}" if s_min >= 1000 else f"{s_min}-{s_max} {currency}"
+        elif s_min:
+            salary = f"{s_min // 1000}K+ {currency}" if s_min >= 1000 else f"{s_min}+ {currency}"
+
+        text = (
+            f"{emoji} Score: {score:.0f}/100 — {priority}\n\n"
+            f"📋 *{raw.get('title', 'N/A')}*\n"
+            f"🏢 {raw.get('company', 'N/A')}\n"
+            f"📍 {location}{f' ({remote_label})' if remote_label else ''}\n"
+        )
+        if salary:
+            text += f"💰 {salary}\n"
+        text += f"🔗 {raw.get('source', '').upper()}\n"
+        if match_kw:
+            text += f"\n✅ Match: {', '.join(match_kw[:8])}"
+        if missing_kw:
+            text += f"\n❌ Manque: {', '.join(missing_kw[:5])}"
+        if reasoning:
+            text += f"\n\n💡 _{reasoning}_"
+
+        source_url = raw.get("source_url", "")
+        buttons = [
+            [
+                InlineKeyboardButton("🔗 Voir l'offre", url=source_url) if source_url
+                else InlineKeyboardButton("🔗 N/A", callback_data="noop"),
+                InlineKeyboardButton("✅ Intéressé", callback_data=f"interested_{item_id}"),
+            ],
+            [
+                InlineKeyboardButton("❌ Ignorer", callback_data=f"reject_{item_id}"),
+                InlineKeyboardButton("⏸ Plus tard", callback_data=f"later_{item_id}"),
+            ],
+        ]
+        if score >= 70:
+            buttons.append([InlineKeyboardButton("📝 Préparer candidature", callback_data=f"preparejob_{item_id}")])
+
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(buttons))
+        return
+
     # Job actions — fetch job info
     uj = (
         sb.table("user_jobs")

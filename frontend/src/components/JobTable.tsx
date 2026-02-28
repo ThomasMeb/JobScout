@@ -33,7 +33,7 @@ export default function JobTable({
     return (
       <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center dark:border-gray-600">
         <p className="text-gray-500 dark:text-gray-400">
-          No jobs found. Jobs will appear after the worker runs its first cycle.
+          Aucune offre trouvée. Les offres apparaîtront après le premier cycle du worker.
         </p>
       </div>
     );
@@ -55,11 +55,11 @@ export default function JobTable({
               </th>
             )}
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titre</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entreprise</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lieu</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
           </tr>
         </thead>
@@ -112,13 +112,13 @@ export default function JobTable({
                         onClick={() => handleFeedback(job.id, "interested")}
                         className="rounded bg-green-100 px-2 py-1 text-xs text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
                       >
-                        Interested
+                        Intéressé
                       </button>
                       <button
                         onClick={() => handleFeedback(job.id, "rejected")}
                         className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
                       >
-                        Reject
+                        Refuser
                       </button>
                     </>
                   )}
@@ -129,7 +129,7 @@ export default function JobTable({
                       rel="noopener noreferrer"
                       className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300"
                     >
-                      View
+                      Voir
                     </a>
                   )}
                 </div>

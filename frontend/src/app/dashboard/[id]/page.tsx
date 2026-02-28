@@ -48,7 +48,7 @@ export default function JobDetailPage() {
     return (
       <AuthGuard>
         <div className="flex min-h-screen items-center justify-center">
-          <p className="text-gray-500">Job not found</p>
+          <p className="text-gray-500">Offre non trouvée</p>
         </div>
       </AuthGuard>
     );
@@ -63,7 +63,7 @@ export default function JobDetailPage() {
               onClick={() => router.back()}
               className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400"
             >
-              &larr; Back
+              &larr; Retour
             </button>
             <Logo size="sm" />
           </div>
@@ -76,7 +76,7 @@ export default function JobDetailPage() {
               <div>
                 <h2 className="text-2xl font-bold">{job.title}</h2>
                 <p className="text-lg text-gray-600 dark:text-gray-400">
-                  {job.company} &middot; {job.location || "Location N/A"}
+                  {job.company} &middot; {job.location || "Lieu non renseigné"}
                 </p>
               </div>
               {job.match_score !== null && (
@@ -94,7 +94,7 @@ export default function JobDetailPage() {
                 {job.source}
               </span>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800">
-                {job.remote_type === "full" ? "Remote" : job.remote_type === "partial" ? "Hybrid" : "On-site"}
+                {job.remote_type === "full" ? "Télétravail" : job.remote_type === "partial" ? "Hybride" : "Sur site"}
               </span>
               {job.salary_min && (
                 <span className="rounded-full bg-gray-100 px-3 py-1 text-sm dark:bg-gray-800">
@@ -108,7 +108,7 @@ export default function JobDetailPage() {
                 job.status === "rejected" ? "bg-gray-200 text-gray-600" :
                 "bg-blue-100 text-blue-700"
               }`}>
-                {job.status}
+                {{ new: "Nouveau", interested: "Intéressé", applied: "Postulé", rejected: "Refusé" }[job.status] || job.status}
               </span>
             </div>
           </div>
@@ -116,19 +116,19 @@ export default function JobDetailPage() {
           {/* Scoring breakdown */}
           {job.match_reasoning && (
             <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-              <h3 className="mb-2 font-semibold">AI Scoring breakdown</h3>
+              <h3 className="mb-2 font-semibold">Détail du scoring IA</h3>
               <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
                 {job.match_reasoning}
               </pre>
               {job.match_keywords.length > 0 && (
                 <div className="mt-3">
-                  <span className="text-sm font-medium text-green-600">Match: </span>
+                  <span className="text-sm font-medium text-green-600">Correspondance : </span>
                   <span className="text-sm">{job.match_keywords.join(", ")}</span>
                 </div>
               )}
               {job.missing_keywords.length > 0 && (
                 <div className="mt-1">
-                  <span className="text-sm font-medium text-red-600">Missing: </span>
+                  <span className="text-sm font-medium text-red-600">Manquant : </span>
                   <span className="text-sm">{job.missing_keywords.join(", ")}</span>
                 </div>
               )}
@@ -143,7 +143,7 @@ export default function JobDetailPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
-              placeholder="Add personal notes about this job..."
+              placeholder="Ajoutez vos notes personnelles sur cette offre..."
             />
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -151,19 +151,19 @@ export default function JobDetailPage() {
                 onClick={() => handleFeedback("interested")}
                 className="rounded-lg bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
               >
-                Interested
+                Intéressé
               </button>
               <button
                 onClick={() => handleFeedback("applied")}
                 className="rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-700"
               >
-                Applied
+                Postulé
               </button>
               <button
                 onClick={() => handleFeedback("rejected")}
                 className="rounded-lg bg-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200"
               >
-                Reject
+                Refuser
               </button>
               {job.source_url && (
                 <a
@@ -172,7 +172,7 @@ export default function JobDetailPage() {
                   rel="noopener noreferrer"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
                 >
-                  View original
+                  Voir l&apos;original
                 </a>
               )}
               {job.apply_url && (
@@ -182,7 +182,7 @@ export default function JobDetailPage() {
                   rel="noopener noreferrer"
                   className="rounded-lg border border-blue-600 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 >
-                  Apply
+                  Postuler
                 </a>
               )}
             </div>

@@ -66,15 +66,15 @@ export default function SettingsPage() {
           <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
             <div className="flex items-center gap-4">
               <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400">
-                &larr; Dashboard
+                &larr; Tableau de bord
               </Link>
-              <h1 className="text-lg font-bold">Settings</h1>
+              <h1 className="text-lg font-bold">Paramètres</h1>
             </div>
             <button
               onClick={handleLogout}
               className="text-sm text-red-600 hover:text-red-700"
             >
-              Sign out
+              Se déconnecter
             </button>
           </div>
         </nav>
@@ -82,7 +82,7 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-2xl space-y-8 px-6 py-8">
           {saved && (
             <div className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
-              Settings saved successfully!
+              Paramètres enregistrés avec succès !
             </div>
           )}
 
@@ -93,49 +93,49 @@ export default function SettingsPage() {
 
           {/* Telegram Setup Guide */}
           <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-            <h2 className="mb-3 text-lg font-semibold">Telegram Notifications</h2>
+            <h2 className="mb-3 text-lg font-semibold">Notifications Telegram</h2>
             <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Get instant notifications for high-scoring jobs on Telegram.
+              Recevez des notifications instantanées pour les offres les mieux notées sur Telegram.
             </p>
             <ol className="list-inside list-decimal space-y-2 text-sm text-gray-600 dark:text-gray-400">
               <li>
-                Open Telegram and search for <strong>@JobScoutNotifBot</strong>
+                Ouvrez Telegram et cherchez <strong>@JobScoutNotifBot</strong>
               </li>
               <li>
-                Send <code>/start</code> to the bot
+                Envoyez <code>/start</code> au bot
               </li>
               <li>
-                The bot will provide your Chat ID — paste it in the Telegram Chat ID field above
+                Le bot vous fournira votre Chat ID — collez-le dans le champ Telegram Chat ID ci-dessus
               </li>
             </ol>
             {profile?.telegram_chat_id ? (
               <div className="mt-4 flex items-center gap-2 text-sm text-green-600">
                 <span>&#10003;</span>
-                <span>Telegram connected (Chat ID: {profile.telegram_chat_id})</span>
+                <span>Telegram connecté (Chat ID : {profile.telegram_chat_id})</span>
               </div>
             ) : (
               <div className="mt-4 text-sm text-yellow-600 dark:text-yellow-400">
-                Telegram not connected yet.
+                Telegram pas encore connecté.
               </div>
             )}
           </div>
 
           {/* Danger Zone */}
           <div className="rounded-xl border border-red-200 p-6 dark:border-red-900">
-            <h2 className="mb-3 text-lg font-semibold text-red-600">Danger zone</h2>
+            <h2 className="mb-3 text-lg font-semibold text-red-600">Zone de danger</h2>
 
             {!deleteConfirm ? (
               <button
                 onClick={() => setDeleteConfirm(true)}
                 className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
               >
-                Delete my account
+                Supprimer mon compte
               </button>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-red-600">
-                  This will permanently delete your account and all your data (profile, jobs, applications).
-                  This action cannot be undone.
+                  Cela supprimera définitivement votre compte et toutes vos données (profil, offres, candidatures).
+                  Cette action est irréversible.
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -143,13 +143,13 @@ export default function SettingsPage() {
                     disabled={deleting}
                     className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
-                    {deleting ? "Deleting..." : "Yes, delete my account"}
+                    {deleting ? "Suppression..." : "Oui, supprimer mon compte"}
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(false)}
                     className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900"
                   >
-                    Cancel
+                    Annuler
                   </button>
                 </div>
               </div>

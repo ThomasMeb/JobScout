@@ -7,11 +7,11 @@ import type { ScrapeRun } from "@/lib/types";
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${mins} min`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `il y a ${hours}h`;
+  return `il y a ${Math.floor(hours / 24)}j`;
 }
 
 export default function WorkerStatus() {
@@ -44,16 +44,16 @@ export default function WorkerStatus() {
         }`}
       />
       <span className="text-gray-600 dark:text-gray-400">
-        Last scan: {lastFinished ? timeAgo(lastFinished) : "unknown"}
+        Dernier scan : {lastFinished ? timeAgo(lastFinished) : "inconnu"}
       </span>
       <span className="text-gray-400 dark:text-gray-600">|</span>
       <span className="text-gray-600 dark:text-gray-400">
-        {totalNew} new job{totalNew !== 1 ? "s" : ""} found
+        {totalNew} nouvelle{totalNew !== 1 ? "s" : ""} offre{totalNew !== 1 ? "s" : ""} trouvée{totalNew !== 1 ? "s" : ""}
       </span>
       {hasError && (
         <>
           <span className="text-gray-400 dark:text-gray-600">|</span>
-          <span className="text-red-500">Some scrapers had errors</span>
+          <span className="text-red-500">Certains scrapers ont eu des erreurs</span>
         </>
       )}
     </div>

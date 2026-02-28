@@ -19,9 +19,9 @@ export default function OnboardingPage() {
       <div className="flex min-h-screen items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
           <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold">Welcome to JobScout</h1>
+            <h1 className="text-2xl font-bold">Bienvenue sur JobScout</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Let&apos;s set up your profile so we can find the best jobs for you.
+              Configurons votre profil pour trouver les meilleures offres pour vous.
             </p>
           </div>
           <ProfileForm profile={{}} onSubmit={handleSubmit} mode="onboarding" />
