@@ -20,7 +20,7 @@ async function fetchAPI(path: string, options: RequestInit = {}) {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || "API error");
+    throw new Error(error.detail || "Erreur API");
   }
 
   return res.json();
@@ -87,7 +87,7 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   const res = await fetch(`${API_URL}${path}`, { headers });
-  if (!res.ok) throw new Error("Export failed");
+  if (!res.ok) throw new Error("Échec de l'export");
 
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);

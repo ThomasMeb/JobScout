@@ -28,7 +28,7 @@ async def _send_brevo_email(to_email: str, to_name: str, subject: str, html: str
                     "Content-Type": "application/json",
                 },
                 json={
-                    "sender": {"name": "JobScout", "email": settings.notification_from_email.split("<")[-1].rstrip(">") if "<" in settings.notification_from_email else "noreply@jobscout.app"},
+                    "sender": {"name": "JobScout", "email": settings.notification_from_email.split("<")[-1].rstrip(">") if "<" in settings.notification_from_email else "noreply@mebarki.dev"},
                     "to": [{"email": to_email, "name": to_name}],
                     "subject": subject,
                     "htmlContent": html,
@@ -50,7 +50,7 @@ async def _send_brevo_email(to_email: str, to_name: str, subject: str, html: str
 def _build_welcome_html(name: str) -> str:
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:20px">
-      <h1 style="color:#1e40af;font-size:24px">Bienvenue sur JobScout, {name} !</h1>
+      <h1 style="color:#1e40af;font-size:24px">Bienvenue sur JobScout{f', {name}' if name else ''} !</h1>
       <p>Votre profil est configuré. Voici ce qui va se passer :</p>
       <ol style="line-height:1.8">
         <li><strong>Scraping automatique</strong> — 9 sources scannées toutes les 4h</li>
@@ -58,7 +58,7 @@ def _build_welcome_html(name: str) -> str:
         <li><strong>Notifications</strong> — top 10 des offres score &ge; 80, &lt; 48h</li>
         <li><strong>Candidature auto</strong> — CV adapté + lettre en 1 clic</li>
       </ol>
-      <p>Consultez votre <a href="https://jobscout.app/dashboard" style="color:#2563eb">dashboard</a> pour suivre les offres.</p>
+      <p>Consultez votre <a href="https://jobscout.mebarki.dev/dashboard" style="color:#2563eb">dashboard</a> pour suivre les offres.</p>
       <p style="margin-top:24px;color:#6b7280;font-size:13px">— L'équipe JobScout</p>
     </div>"""
 
@@ -80,7 +80,7 @@ async def send_welcome_email(user_id: str) -> bool:
         return False
 
     email = profile.data.get("notification_email")
-    name = profile.data.get("name") or "there"
+    name = profile.data.get("name") or ""
     if not email:
         return False
 
@@ -136,13 +136,13 @@ def _build_weekly_digest_html(name: str, jobs: list[dict]) -> str:
 
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:20px">
-      <h2 style="color:#1e40af">Votre résumé hebdomadaire, {name}</h2>
+      <h2 style="color:#1e40af">Votre résumé hebdomadaire{f', {name}' if name else ''}</h2>
       <p>Voici le top {len(jobs)} des offres de la semaine :</p>
       <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px">
         <tbody>{rows}</tbody>
       </table>
       <p style="margin-top:16px">
-        <a href="https://jobscout.app/dashboard" style="display:inline-block;background:#2563eb;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600">
+        <a href="https://jobscout.mebarki.dev/dashboard" style="display:inline-block;background:#2563eb;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600">
           Voir toutes les offres
         </a>
       </p>
@@ -164,7 +164,7 @@ async def send_weekly_digest(user_id: str) -> bool:
         return False
 
     email = profile.data.get("notification_email")
-    name = profile.data.get("name") or "there"
+    name = profile.data.get("name") or ""
     if not email:
         return False
 
@@ -235,13 +235,13 @@ def _build_confirmation_html(name: str, job_title: str, company: str, to_email: 
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:20px">
       <h2 style="color:#16a34a">Candidature envoyée !</h2>
-      <p>Bonjour {name},</p>
+      <p>Bonjour{f' {name}' if name else ''},</p>
       <p>Votre candidature pour <strong>{job_title}</strong> chez <strong>{company}</strong> a été envoyée automatiquement à <code>{to_email}</code>.</p>
       <ul style="line-height:1.8">
         <li>CV adapté au poste</li>
         <li>Lettre de motivation personnalisée</li>
       </ul>
-      <p>Suivez l'avancement dans votre <a href="https://jobscout.app/dashboard" style="color:#2563eb">dashboard</a>.</p>
+      <p>Suivez l'avancement dans votre <a href="https://jobscout.mebarki.dev/dashboard" style="color:#2563eb">dashboard</a>.</p>
       <p style="margin-top:24px;color:#6b7280;font-size:13px">— JobScout</p>
     </div>"""
 
@@ -260,7 +260,7 @@ async def send_application_confirmation(user_id: str, job_title: str, company: s
         return False
 
     email = profile.data.get("notification_email")
-    name = profile.data.get("name") or "there"
+    name = profile.data.get("name") or ""
     if not email:
         return False
 

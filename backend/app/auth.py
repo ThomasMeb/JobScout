@@ -48,13 +48,13 @@ def verify_supabase_token(
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired",
+            detail="Token expiré",
         )
     except jwt.InvalidTokenError as e:
         logger.warning(f"Invalid JWT: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="Token invalide",
         )
 
 
@@ -66,7 +66,7 @@ def get_current_user_id(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: no user ID",
+            detail="Token invalide : aucun identifiant utilisateur",
         )
     return user_id
 

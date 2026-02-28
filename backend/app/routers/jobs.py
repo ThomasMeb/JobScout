@@ -225,10 +225,10 @@ async def export_jobs_csv(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "Title", "Company", "Location", "Remote", "Score", "Priority",
-        "Status", "Source", "URL", "Apply URL",
-        "Salary Min", "Salary Max", "Currency",
-        "Match Keywords", "Missing Keywords", "Reasoning", "Notes", "Scored At",
+        "Titre", "Entreprise", "Lieu", "Télétravail", "Score", "Priorité",
+        "Statut", "Source", "URL", "URL candidature",
+        "Salaire min", "Salaire max", "Devise",
+        "Mots-clés correspondants", "Mots-clés manquants", "Analyse", "Notes", "Évalué le",
     ])
 
     for row in result.data or []:

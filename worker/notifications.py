@@ -69,7 +69,7 @@ async def send_notifications():
         if not jobs:
             continue
 
-        name = user.get("name") or "there"
+        name = user.get("name") or ""
         sent = False
 
         # Email
@@ -141,7 +141,7 @@ def _build_digest_html(name: str, jobs: list[dict]) -> str:
 
     return f"""
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#1e40af">Bonjour {name},</h2>
+      <h2 style="color:#1e40af">Bonjour{f' {name}' if name else ''},</h2>
       <p>Voici vos dernières offres correspondantes :</p>
       <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px">
         <thead>
@@ -173,7 +173,8 @@ def _parse_keywords(value) -> list[str]:
 
 def _build_digest_text(name: str, jobs: list[dict]) -> str:
     """Build an enriched digest message listing all jobs with details."""
-    lines = [f"📬 *{name}, {len(jobs)} nouvelle{'s' if len(jobs) > 1 else ''} offre{'s' if len(jobs) > 1 else ''}*"]
+    greeting = f"📬 *{name}, " if name else "📬 *"
+    lines = [f"{greeting}{len(jobs)} nouvelle{'s' if len(jobs) > 1 else ''} offre{'s' if len(jobs) > 1 else ''}*"]
     for job in jobs:
         raw = job.get("raw_jobs", {})
         score = job.get("match_score", 0)
