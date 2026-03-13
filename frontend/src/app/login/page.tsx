@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
+import { GoogleIcon, GitHubIcon, MailIcon, LockIcon } from "@/components/Icons";
 import { createClient } from "@/lib/supabase-browser";
 import { translateAuthError } from "@/lib/auth-errors";
 
@@ -20,12 +21,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setMessage(translateAuthError(error.message));
     } else {
@@ -38,15 +34,11 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-
     if (error) {
       setMessage(translateAuthError(error.message));
     } else {
@@ -59,12 +51,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-
     if (error) {
       setMessage(translateAuthError(error.message));
     } else {
@@ -80,165 +70,116 @@ export default function LoginPage() {
     });
   }
 
+  const inputClass =
+    "w-full rounded border border-border bg-surface-1 py-2.5 pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors";
+
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <Link href="/"><Logo size="lg" /></Link>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            {mode === "signup" ? "Créez votre compte" : "Connectez-vous à votre compte"}
-          </p>
-        </div>
-
-        {/* OAuth */}
-        <div className="space-y-3">
-          <button
-            onClick={() => handleOAuth("google")}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-          >
-            Continuer avec Google
-          </button>
-          <button
-            onClick={() => handleOAuth("github")}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-          >
-            Continuer avec GitHub
-          </button>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-          <span className="text-xs text-gray-500">OU</span>
-          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-        </div>
-
-        {/* Sign in with password */}
-        {mode === "signin" && (
-          <form onSubmit={handlePasswordLogin} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mot de passe"
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Connexion..." : "Se connecter"}
-            </button>
-            <div className="flex justify-between text-xs text-gray-500">
-              <button type="button" onClick={() => setMode("magic")} className="hover:text-gray-700 dark:hover:text-gray-300">
-                Utiliser un lien magique
-              </button>
-              <Link href="/forgot-password" className="hover:text-gray-700 dark:hover:text-gray-300">
-                Mot de passe oublié ?
-              </Link>
-            </div>
-          </form>
-        )}
-
-        {/* Sign up */}
-        {mode === "signup" && (
-          <form onSubmit={handleSignUp} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mot de passe (min. 6 caractères)"
-              required
-              minLength={6}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Création du compte..." : "Créer un compte"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("magic")}
-              className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              Utiliser un lien magique
-            </button>
-          </form>
-        )}
-
-        {/* Magic link */}
-        {mode === "magic" && (
-          <form onSubmit={handleMagicLink} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? "Envoi en cours..." : "Envoyer le lien magique"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("signin")}
-              className="w-full text-center text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              Utiliser un mot de passe
-            </button>
-          </form>
-        )}
-
-        {message && (
-          <p className={`text-center text-sm ${message.includes("Vérifiez") ? "text-green-600" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
-
-        {/* Toggle sign in / sign up */}
-        <p className="text-center text-sm text-gray-500">
-          {mode === "signup" ? (
-            <>
-              Vous avez déjà un compte ?{" "}
-              <button onClick={() => setMode("signin")} className="text-blue-600 hover:underline">
-                Se connecter
-              </button>
-            </>
-          ) : (
-            <>
-              Vous n&apos;avez pas de compte ?{" "}
-              <button onClick={() => setMode("signup")} className="text-blue-600 hover:underline">
-                S&apos;inscrire
-              </button>
-            </>
-          )}
+    <AuthLayout>
+      <div className="text-center">
+        <h1 className="text-xl font-bold text-text-primary">
+          {mode === "signup" ? "Créez votre compte" : "Connectez-vous"}
+        </h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          {mode === "signup"
+            ? "Commencez à trouver vos matchs emploi"
+            : "Accédez à votre tableau de bord"}
         </p>
       </div>
-    </div>
+
+      {/* OAuth */}
+      <div className="space-y-3">
+        <button
+          onClick={() => handleOAuth("google")}
+          className="flex w-full items-center justify-center gap-3 rounded border border-border bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary hover:border-border-hover hover:bg-surface-2 transition-colors"
+        >
+          <GoogleIcon />
+          Continuer avec Google
+        </button>
+        <button
+          onClick={() => handleOAuth("github")}
+          className="flex w-full items-center justify-center gap-3 rounded border border-border bg-surface-1 px-4 py-2.5 text-sm font-medium text-text-primary hover:border-border-hover hover:bg-surface-2 transition-colors"
+        >
+          <GitHubIcon />
+          Continuer avec GitHub
+        </button>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs font-medium uppercase tracking-wider text-text-muted">ou</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      {/* Sign in with password */}
+      {mode === "signin" && (
+        <form onSubmit={handlePasswordLogin} className="space-y-3">
+          <div className="relative">
+            <MailIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className={inputClass} />
+          </div>
+          <div className="relative">
+            <LockIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" required className={inputClass} />
+          </div>
+          <button type="submit" disabled={loading} className="w-full rounded bg-amber py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
+          <div className="flex justify-between text-xs text-text-muted">
+            <button type="button" onClick={() => setMode("magic")} className="hover:text-text-secondary transition-colors">Utiliser un lien magique</button>
+            <Link href="/forgot-password" className="hover:text-text-secondary transition-colors">Mot de passe oublié ?</Link>
+          </div>
+        </form>
+      )}
+
+      {/* Sign up */}
+      {mode === "signup" && (
+        <form onSubmit={handleSignUp} className="space-y-3">
+          <div className="relative">
+            <MailIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className={inputClass} />
+          </div>
+          <div className="relative">
+            <LockIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (min. 6 caractères)" required minLength={6} className={inputClass} />
+          </div>
+          <button type="submit" disabled={loading} className="w-full rounded bg-amber py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+            {loading ? "Création du compte..." : "Créer un compte"}
+          </button>
+          <button type="button" onClick={() => setMode("magic")} className="w-full text-center text-xs text-text-muted hover:text-text-secondary transition-colors">
+            Utiliser un lien magique
+          </button>
+        </form>
+      )}
+
+      {/* Magic link */}
+      {mode === "magic" && (
+        <form onSubmit={handleMagicLink} className="space-y-3">
+          <div className="relative">
+            <MailIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className={inputClass} />
+          </div>
+          <button type="submit" disabled={loading} className="w-full rounded bg-amber py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+            {loading ? "Envoi en cours..." : "Envoyer le lien magique"}
+          </button>
+          <button type="button" onClick={() => setMode("signin")} className="w-full text-center text-xs text-text-muted hover:text-text-secondary transition-colors">
+            Utiliser un mot de passe
+          </button>
+        </form>
+      )}
+
+      {message && (
+        <p className={`text-center text-sm ${message.includes("Vérifiez") ? "text-positive" : "text-negative"}`}>
+          {message}
+        </p>
+      )}
+
+      <p className="text-center text-sm text-text-muted">
+        {mode === "signup" ? (
+          <>Vous avez déjà un compte ?{" "}<button onClick={() => setMode("signin")} className="text-amber hover:text-amber-bright transition-colors">Se connecter</button></>
+        ) : (
+          <>Vous n&apos;avez pas de compte ?{" "}<button onClick={() => setMode("signup")} className="text-amber hover:text-amber-bright transition-colors">S&apos;inscrire</button></>
+        )}
+      </p>
+    </AuthLayout>
   );
 }

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
+import { LockIcon } from "@/components/Icons";
 import { createClient } from "@/lib/supabase-browser";
 import { translateAuthError } from "@/lib/auth-errors";
 
@@ -18,16 +18,12 @@ export default function UpdatePasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
-
     if (password !== confirm) {
       setMessage("Les mots de passe ne correspondent pas.");
       return;
     }
-
     setLoading(true);
-
     const { error } = await supabase.auth.updateUser({ password });
-
     if (error) {
       setMessage(translateAuthError(error.message));
     } else {
@@ -37,48 +33,35 @@ export default function UpdatePasswordPage() {
     setLoading(false);
   }
 
+  const inputClass =
+    "w-full rounded border border-border bg-surface-1 py-2.5 pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors";
+
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <Link href="/"><Logo size="lg" /></Link>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Définissez votre nouveau mot de passe</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nouveau mot de passe (min. 6 caractères)"
-            required
-            minLength={6}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-          />
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Confirmer le nouveau mot de passe"
-            required
-            minLength={6}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
-          </button>
-        </form>
-
-        {message && (
-          <p className={`text-center text-sm ${message.includes("succès") ? "text-green-600" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
+    <AuthLayout tagline="Sécurisez votre compte avec un nouveau mot de passe.">
+      <div className="text-center">
+        <h1 className="text-xl font-bold text-text-primary">Nouveau mot de passe</h1>
+        <p className="mt-1 text-sm text-text-secondary">Définissez votre nouveau mot de passe</p>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="relative">
+          <LockIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nouveau mot de passe (min. 6 caractères)" required minLength={6} className={inputClass} />
+        </div>
+        <div className="relative">
+          <LockIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirmer le nouveau mot de passe" required minLength={6} className={inputClass} />
+        </div>
+        <button type="submit" disabled={loading} className="w-full rounded bg-amber py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+          {loading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
+        </button>
+      </form>
+
+      {message && (
+        <p className={`text-center text-sm ${message.includes("succès") ? "text-positive" : "text-negative"}`}>
+          {message}
+        </p>
+      )}
+    </AuthLayout>
   );
 }
