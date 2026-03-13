@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
@@ -28,7 +29,7 @@ export default function UpdatePasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
     } else {
       setMessage("Mot de passe mis à jour avec succès !");
       setTimeout(() => router.push("/dashboard"), 1500);

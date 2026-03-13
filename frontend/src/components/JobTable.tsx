@@ -33,7 +33,7 @@ export default function JobTable({
     return (
       <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center dark:border-gray-600">
         <p className="text-gray-500 dark:text-gray-400">
-          Aucune offre trouvée. Les offres apparaîtront après le premier cycle du worker.
+          Aucune offre trouvée. Vos offres apparaîtront au prochain cycle de scoring (toutes les 4 heures).
         </p>
       </div>
     );

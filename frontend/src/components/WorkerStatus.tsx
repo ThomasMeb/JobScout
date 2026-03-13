@@ -48,7 +48,7 @@ export default function WorkerStatus() {
       </span>
       <span className="text-gray-400 dark:text-gray-600">|</span>
       <span className="text-gray-600 dark:text-gray-400">
-        {totalNew} nouvelle{totalNew !== 1 ? "s" : ""} offre{totalNew !== 1 ? "s" : ""} trouvée{totalNew !== 1 ? "s" : ""}
+        {totalNew} nouvelle{totalNew !== 1 ? "s" : ""} offre{totalNew !== 1 ? "s" : ""} scrapée{totalNew !== 1 ? "s" : ""}
       </span>
       {hasError && (
         <>

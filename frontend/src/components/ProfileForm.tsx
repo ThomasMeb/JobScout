@@ -225,6 +225,8 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           type="number"
           value={form.min_salary}
           onChange={(e) => setForm({ ...form, min_salary: e.target.value })}
+          min={0}
+          max={500000}
           className={inputClass("min_salary")}
           placeholder="45000"
         />
@@ -234,8 +236,8 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     // Step 3: Keywords (optional)
     <div key="keywords" className="space-y-4">
       <h2 className="text-xl font-semibold">
-        Mots-clés
-        <span className="ml-2 text-sm font-normal text-gray-400">(optionnel)</span>
+        Mots-clés{" "}
+        <span className="text-sm font-normal text-gray-400">(optionnel)</span>
       </h2>
       {suggestedKeywords.length > 0 && !form.bonus_keywords.trim() && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
@@ -288,8 +290,8 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     // Step 4: Notifications & Budget (optional)
     <div key="notifications" className="space-y-4">
       <h2 className="text-xl font-semibold">
-        Notifications et budget
-        <span className="ml-2 text-sm font-normal text-gray-400">(optionnel)</span>
+        Notifications et budget{" "}
+        <span className="text-sm font-normal text-gray-400">(optionnel)</span>
       </h2>
       <div>
         <label className="mb-1 block text-sm font-medium">Email de notification</label>
@@ -339,6 +341,7 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
           value={form.monthly_budget_usd}
           onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })}
           min={0}
+          max={100}
           step={0.5}
           className={inputClass("monthly_budget_usd")}
           placeholder="5.00"

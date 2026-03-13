@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase-browser";
+import { translateAuthError } from "@/lib/auth-errors";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,7 +27,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
     } else {
       router.push("/dashboard");
     }
@@ -47,7 +48,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
     } else {
       setMessage("Vérifiez votre email pour confirmer votre compte !");
     }
@@ -65,7 +66,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
     } else {
       setMessage("Vérifiez votre email pour le lien de connexion !");
     }
