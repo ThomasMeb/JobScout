@@ -1,26 +1,234 @@
 @import "tailwindcss";
 
+/* ============================================
+   Signal Noir Design System
+   Bloomberg terminal × éditorial français
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Amber signal */
+  --amber: #F59E0B;
+  --amber-bright: #FBBF24;
+  --amber-dim: #D97706;
+  --amber-glow: #F59E0B33;
+
+  /* Surfaces */
+  --surface-0: #0C0C0E;
+  --surface-1: #141416;
+  --surface-2: #1C1C20;
+  --surface-3: #26262B;
+
+  /* Text */
+  --text-primary: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #52525B;
+
+  /* Borders */
+  --border: #27272A;
+  --border-hover: #3F3F46;
+
+  /* Accents */
+  --positive: #34D399;
+  --negative: #F87171;
+  --info: #60A5FA;
+  --purple: #A78BFA;
+
+  /* Mapped */
+  --background: var(--surface-0);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-amber: var(--amber);
+  --color-amber-bright: var(--amber-bright);
+  --color-amber-dim: var(--amber-dim);
+  --color-amber-glow: var(--amber-glow);
+
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-info: var(--info);
+  --color-purple: var(--purple);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ============================================
+   Base
+   ============================================ */
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* ============================================
+   Keyframes
+   ============================================ */
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes signal-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Counter animation */
+@property --num {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+
+@keyframes count-up {
+  from { --num: 0; }
+}
+
+/* ============================================
+   Utility classes
+   ============================================ */
+
+/* Signal glow on hover */
+.signal-glow {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.signal-glow:hover {
+  box-shadow: 0 0 20px var(--amber-glow), 0 0 40px var(--amber-glow);
+  border-color: var(--amber);
+}
+
+/* Noise texture overlay */
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 0;
+}
+.noise {
+  position: relative;
+}
+
+/* Hero dot grid background */
+.hero-grid {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Reveal animations */
+.reveal {
+  animation: reveal-up 0.6s ease-out both;
+}
+.reveal-d1 { animation-delay: 0.1s; }
+.reveal-d2 { animation-delay: 0.2s; }
+.reveal-d3 { animation-delay: 0.3s; }
+.reveal-d4 { animation-delay: 0.4s; }
+.reveal-d5 { animation-delay: 0.5s; }
+
+/* Card hover effect */
+.card-hover {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  border-color: var(--amber-dim);
+  box-shadow: 0 0 16px var(--amber-glow);
+}
+
+/* Counter display */
+.counter {
+  transition: --num 1s ease-out;
+  counter-reset: num var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.counter::after {
+  content: counter(num);
+}
+
+/* Amber gradient text */
+.text-amber-gradient {
+  background: linear-gradient(135deg, var(--amber-bright), var(--amber-dim));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Label uppercase style */
+.label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Score ring gradient */
+.score-ring {
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-out;
 }
