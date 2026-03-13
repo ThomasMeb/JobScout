@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Politique de Confidentialité</h1>
-      <p className="text-sm text-gray-500">Dernière mise à jour : février 2026</p>
+      <p className="text-sm text-text-muted">Dernière mise à jour : février 2026</p>
 
       <h2>1. Responsable du traitement</h2>
       <p>

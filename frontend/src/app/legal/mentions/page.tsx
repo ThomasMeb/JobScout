@@ -10,7 +10,7 @@ export default function MentionsPage() {
   return (
     <>
       <h1>Mentions Légales</h1>
-      <p className="text-sm text-gray-500">Dernière mise à jour : février 2026</p>
+      <p className="text-sm text-text-muted">Dernière mise à jour : février 2026</p>
 
       <h2>Éditeur du site</h2>
       <p>

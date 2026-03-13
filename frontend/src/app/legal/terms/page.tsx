@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <>
       <h1>Conditions Générales d&apos;Utilisation</h1>
-      <p className="text-sm text-gray-500">Dernière mise à jour : février 2026</p>
+      <p className="text-sm text-text-muted">Dernière mise à jour : février 2026</p>
 
       <h2>1. Objet</h2>
       <p>
