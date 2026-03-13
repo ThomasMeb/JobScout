@@ -16,29 +16,37 @@ function BarChart({
   const max = Math.max(...data.map((d) => d.value), 1);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+    <div className="rounded border border-border bg-surface-1 p-4">
+      <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">
         {title}
       </h3>
-      <div className="flex items-end gap-1" style={{ height: 120 }}>
-        {data.map((d) => (
-          <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[10px] text-gray-500">
-              {d.value > 0 ? d.value : ""}
-            </span>
-            <div
-              className="w-full rounded-t"
-              style={{
-                height: `${(d.value / max) * 100}%`,
-                minHeight: d.value > 0 ? 4 : 0,
-                backgroundColor: color,
-              }}
-            />
-            <span className="text-[9px] text-gray-400 leading-tight text-center">
-              {d.label}
-            </span>
-          </div>
-        ))}
+      {/* Grid lines */}
+      <div className="relative" style={{ height: 120 }}>
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="border-t border-border/50" />
+          ))}
+        </div>
+        <div className="relative flex items-end gap-1 h-full">
+          {data.map((d) => (
+            <div key={d.label} className="flex flex-1 flex-col items-center gap-1 h-full justify-end">
+              <span className="font-mono text-[10px] text-text-muted">
+                {d.value > 0 ? d.value : ""}
+              </span>
+              <div
+                className="w-full rounded-t transition-all duration-500"
+                style={{
+                  height: `${(d.value / max) * 100}%`,
+                  minHeight: d.value > 0 ? 4 : 0,
+                  background: `linear-gradient(to top, ${color}, ${color}aa)`,
+                }}
+              />
+              <span className="text-[9px] text-text-muted leading-tight text-center">
+                {d.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -70,17 +78,9 @@ export default function Charts() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <BarChart
-        title="Répartition des scores"
-        data={scoreBuckets}
-        color="#3b82f6"
-      />
+      <BarChart title="Répartition des scores" data={scoreBuckets} color="#F59E0B" />
       {dailyJobs.length > 0 && (
-        <BarChart
-          title="Offres analysées (30 derniers jours)"
-          data={dailyJobs}
-          color="#10b981"
-        />
+        <BarChart title="Offres analysées (30 derniers jours)" data={dailyJobs} color="#34D399" />
       )}
     </div>
   );

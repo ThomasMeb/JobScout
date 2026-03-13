@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
+import AppShell from "@/components/AppShell";
 import Charts from "@/components/Charts";
 import FilterBar from "@/components/FilterBar";
 import JobCard from "@/components/JobCard";
 import JobTable from "@/components/JobTable";
-import MobileNav from "@/components/MobileNav";
 import StatsBar from "@/components/StatsBar";
 import WorkerStatus from "@/components/WorkerStatus";
+import { SearchIcon, DownloadIcon } from "@/components/Icons";
 import { bulkFeedback, exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
 import type { Job, JobListResponse, Profile, UserStats } from "@/lib/types";
 
@@ -21,14 +22,11 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  // Filters
   const [minScore, setMinScore] = useState<number | "">("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
-
-  // Bulk selection
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const perPage = 20;
@@ -41,7 +39,6 @@ export default function DashboardPage() {
         router.replace("/onboarding");
         return;
       }
-
       const [jobsRes, statsRes]: [JobListResponse, UserStats] = await Promise.all([
         getJobs({
           page,
@@ -53,7 +50,6 @@ export default function DashboardPage() {
         }),
         getStats(),
       ]);
-
       setJobs(jobsRes.jobs);
       setTotal(jobsRes.total);
       setStats(statsRes);
@@ -102,26 +98,37 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <MobileNav />
+      <AppShell>
+        <div className="space-y-4 px-4 py-6 sm:space-y-6 sm:px-6 lg:px-8">
+          {/* Welcome header */}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>
+              Tableau de bord
+            </h1>
+            <p className="mt-1 text-sm text-text-secondary">
+              Vos offres d&apos;emploi, analysées par IA.
+            </p>
+          </div>
 
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
           {stats && <StatsBar stats={stats} />}
           <Charts />
           <WorkerStatus />
 
           {/* Search */}
           <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Rechercher des offres..."
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800"
-            />
+            <div className="relative flex-1">
+              <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Rechercher des offres..."
+                className="w-full rounded border border-border bg-surface-1 py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none focus:ring-1 focus:ring-amber transition-colors"
+              />
+            </div>
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+              className="rounded bg-amber px-4 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors"
             >
               Rechercher
             </button>
@@ -129,7 +136,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
+                className="rounded border border-border px-3 py-2 text-sm text-text-secondary hover:border-border-hover hover:text-text-primary transition-colors"
               >
                 Effacer
               </button>
@@ -151,38 +158,26 @@ export default function DashboardPage() {
           {/* Bulk actions + Export */}
           <div className="flex flex-wrap items-center gap-2">
             {selected.size > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950">
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              <div className="flex items-center gap-2 rounded border border-amber/30 bg-amber/5 px-3 py-1.5">
+                <span className="text-sm font-medium text-amber">
                   {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
                 </span>
-                <button
-                  onClick={() => handleBulkAction("interested")}
-                  className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-green-700"
-                >
+                <button onClick={() => handleBulkAction("interested")} className="rounded bg-positive px-2 py-0.5 text-xs font-medium text-surface-0 hover:brightness-110">
                   Intéressé
                 </button>
-                <button
-                  onClick={() => handleBulkAction("rejected")}
-                  className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-red-700"
-                >
+                <button onClick={() => handleBulkAction("rejected")} className="rounded bg-negative px-2 py-0.5 text-xs font-medium text-surface-0 hover:brightness-110">
                   Refuser
                 </button>
-                <button
-                  onClick={() => handleBulkAction("new")}
-                  className="rounded bg-gray-500 px-2 py-0.5 text-xs font-medium text-white hover:bg-gray-600"
-                >
+                <button onClick={() => handleBulkAction("new")} className="rounded bg-surface-3 px-2 py-0.5 text-xs font-medium text-text-secondary hover:brightness-110">
                   Réinitialiser
                 </button>
               </div>
             )}
-
             <button
-              onClick={() => exportJobsCSV({
-                min_score: minScore || undefined,
-                status: statusFilter || undefined,
-              })}
-              className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              onClick={() => exportJobsCSV({ min_score: minScore || undefined, status: statusFilter || undefined })}
+              className="ml-auto flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm text-text-secondary hover:border-border-hover hover:text-text-primary transition-colors"
             >
+              <DownloadIcon size={14} />
               Exporter CSV
             </button>
           </div>
@@ -190,38 +185,21 @@ export default function DashboardPage() {
           {/* Job listings */}
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber border-t-transparent" />
             </div>
           ) : (
             <>
-              {/* Desktop: table */}
               <div className="hidden md:block">
-                <JobTable
-                  jobs={jobs}
-                  onRefresh={fetchData}
-                  selected={selected}
-                  onToggleSelect={toggleSelect}
-                  onToggleSelectAll={toggleSelectAll}
-                />
+                <JobTable jobs={jobs} onRefresh={fetchData} selected={selected} onToggleSelect={toggleSelect} onToggleSelectAll={toggleSelectAll} />
               </div>
-
-              {/* Mobile: cards */}
               <div className="space-y-3 md:hidden">
                 {jobs.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Aucune offre trouvée.
-                    </p>
+                  <div className="rounded border border-dashed border-border p-8 text-center">
+                    <p className="text-sm text-text-muted">Aucune offre trouvée.</p>
                   </div>
                 ) : (
                   jobs.map((job) => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      onRefresh={fetchData}
-                      selected={selected.has(job.id)}
-                      onToggleSelect={toggleSelect}
-                    />
+                    <JobCard key={job.id} job={job} onRefresh={fetchData} selected={selected.has(job.id)} onToggleSelect={toggleSelect} />
                   ))
                 )}
               </div>
@@ -234,24 +212,24 @@ export default function DashboardPage() {
               <button
                 onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page <= 1}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
+                className="rounded border border-border px-3 py-1.5 text-sm text-text-secondary disabled:opacity-50 hover:border-border-hover transition-colors"
               >
                 Précédent
               </button>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="font-mono text-sm text-text-muted">
                 {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-gray-600"
+                className="rounded border border-border px-3 py-1.5 text-sm text-text-secondary disabled:opacity-50 hover:border-border-hover transition-colors"
               >
                 Suivant
               </button>
             </div>
           )}
         </div>
-      </div>
+      </AppShell>
     </AuthGuard>
   );
 }

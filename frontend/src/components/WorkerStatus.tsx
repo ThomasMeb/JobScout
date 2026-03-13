@@ -31,29 +31,30 @@ export default function WorkerStatus() {
   const lastFinished = lastRun.finished_at || lastRun.started_at;
   const totalNew = runs.reduce((sum, r) => sum + r.jobs_new, 0);
   const hasError = runs.some((r) => r.status === "error");
+  const isRunning = lastRun.status === "running";
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm dark:border-gray-700 dark:bg-gray-900">
+    <div className="flex items-center gap-3 rounded border border-border bg-surface-1 px-4 py-2.5 text-sm">
       <span
         className={`inline-block h-2 w-2 rounded-full ${
-          lastRun.status === "running"
-            ? "animate-pulse bg-yellow-400"
+          isRunning
+            ? "animate-pulse bg-amber"
             : hasError
-              ? "bg-red-400"
-              : "bg-green-400"
+              ? "bg-negative"
+              : "bg-positive"
         }`}
       />
-      <span className="text-gray-600 dark:text-gray-400">
-        Dernier scan : {lastFinished ? timeAgo(lastFinished) : "inconnu"}
+      <span className="text-text-secondary">
+        Dernier scan : <span className="font-mono text-text-primary">{lastFinished ? timeAgo(lastFinished) : "inconnu"}</span>
       </span>
-      <span className="text-gray-400 dark:text-gray-600">|</span>
-      <span className="text-gray-600 dark:text-gray-400">
-        {totalNew} nouvelle{totalNew !== 1 ? "s" : ""} offre{totalNew !== 1 ? "s" : ""} scrapée{totalNew !== 1 ? "s" : ""}
+      <span className="text-border-hover">|</span>
+      <span className="text-text-secondary">
+        <span className="font-mono text-text-primary">{totalNew}</span> nouvelle{totalNew !== 1 ? "s" : ""} offre{totalNew !== 1 ? "s" : ""}
       </span>
       {hasError && (
         <>
-          <span className="text-gray-400 dark:text-gray-600">|</span>
-          <span className="text-red-500">Certains scrapers ont eu des erreurs</span>
+          <span className="text-border-hover">|</span>
+          <span className="text-negative">Erreurs détectées</span>
         </>
       )}
     </div>
