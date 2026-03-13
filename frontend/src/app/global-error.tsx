@@ -17,24 +17,25 @@ export default function GlobalError({
 
   return (
     <html lang="fr">
-      <body className="flex min-h-screen items-center justify-center bg-white px-4 text-gray-900 dark:bg-gray-900 dark:text-white">
+      <body className="flex min-h-screen items-center justify-center px-4" style={{ background: "#0C0C0E", color: "#F4F4F5" }}>
         <div className="text-center">
           <h1 className="text-2xl font-bold">
-            <span className="text-blue-600">Job</span>
+            <span style={{ color: "#FBBF24" }}>Job</span>
             <span>Scout</span>
           </h1>
 
-          <p className="mt-6 text-lg font-semibold">Something went wrong</p>
-          <p className="mt-1 text-sm text-gray-500">
-            A critical error occurred. Please try again.
+          <p className="mt-6 text-lg font-semibold">Une erreur critique est survenue</p>
+          <p className="mt-1 text-sm" style={{ color: "#A1A1AA" }}>
+            Veuillez réessayer ou contacter le support.
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3">
             <button
               onClick={reset}
-              className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+              className="rounded px-6 py-2.5 text-sm font-medium"
+              style={{ background: "#F59E0B", color: "#0C0C0E" }}
             >
-              Try again
+              Réessayer
             </button>
           </div>
         </div>

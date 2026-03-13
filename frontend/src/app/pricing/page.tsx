@@ -3,6 +3,7 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import JsonLd from "@/components/JsonLd";
 import { faqJsonLd } from "@/lib/structured-data";
+import { CheckIcon, CrossIcon } from "@/components/Icons";
 
 export const metadata: Metadata = {
   title: "Tarifs",
@@ -18,7 +19,6 @@ const plans = [
     period: "/mois",
     description: "Parfait pour démarrer et découvrir la plateforme.",
     cta: "Commencer",
-    ctaStyle: "border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900",
     popular: false,
     features: [
       { text: "10 offres évaluées par cycle", included: true },
@@ -37,7 +37,6 @@ const plans = [
     period: "/mois",
     description: "Pour les chercheurs d'emploi actifs qui veulent un maximum d'automatisation.",
     cta: "Démarrer l'essai gratuit",
-    ctaStyle: "bg-blue-600 text-white hover:bg-blue-700",
     popular: true,
     features: [
       { text: "Évaluation illimitée des offres", included: true },
@@ -77,20 +76,14 @@ const faqs = [
 
 export default function PricingPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
-      <JsonLd
-        data={faqJsonLd(
-          faqs.map((f) => ({ question: f.q, answer: f.a }))
-        )}
-      />
+    <div className="flex min-h-screen flex-col bg-surface-0 text-text-primary">
+      <JsonLd data={faqJsonLd(faqs.map((f) => ({ question: f.q, answer: f.a })))} />
+
       {/* Navbar */}
-      <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+      <header className="border-b border-border bg-surface-0/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/"><Logo size="md" /></Link>
-          <Link
-            href="/login"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <Link href="/login" className="rounded bg-amber px-4 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors">
             Commencer
           </Link>
         </div>
@@ -100,8 +93,10 @@ export default function PricingPage() {
         <div className="mx-auto max-w-4xl">
           {/* Header */}
           <div className="mb-12 text-center">
-            <h2 className="mb-3 text-4xl font-bold">Des tarifs simples et transparents</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
+            <h1 className="mb-3 text-4xl font-bold" style={{ letterSpacing: "-0.03em" }}>
+              Des tarifs simples et transparents
+            </h1>
+            <p className="text-lg text-text-secondary">
               Commencez gratuitement, passez à Pro quand vous en avez besoin. Annulez à tout moment.
             </p>
           </div>
@@ -111,27 +106,31 @@ export default function PricingPage() {
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative rounded-xl p-8 ${
+                className={`relative rounded border p-8 ${
                   plan.popular
-                    ? "border-2 border-blue-600"
-                    : "border border-gray-200 dark:border-gray-800"
+                    ? "signal-glow border-2 border-amber bg-surface-1"
+                    : "border-border bg-surface-1"
                 }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-0.5 text-xs font-medium text-white">
+                  <div className="absolute -top-3 left-6 rounded bg-gradient-to-r from-amber-bright to-amber-dim px-3 py-0.5 text-xs font-medium text-surface-0">
                     Le plus populaire
                   </div>
                 )}
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
+                <h2 className="text-lg font-semibold">{plan.name}</h2>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-gray-500">{plan.period}</span>
+                  <span className={`font-mono text-4xl font-bold ${plan.popular ? "text-amber-bright" : ""}`}>{plan.price}</span>
+                  <span className="text-text-muted">{plan.period}</span>
                 </div>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
+                <p className="mt-2 text-sm text-text-secondary">{plan.description}</p>
 
                 <Link
                   href="/login"
-                  className={`mt-6 block rounded-lg py-2.5 text-center text-sm font-medium ${plan.ctaStyle}`}
+                  className={`mt-6 block rounded py-2.5 text-center text-sm font-medium transition-colors ${
+                    plan.popular
+                      ? "bg-amber text-surface-0 hover:bg-amber-bright"
+                      : "border border-border text-text-secondary hover:border-border-hover hover:text-text-primary"
+                  }`}
                 >
                   {plan.cta}
                 </Link>
@@ -139,10 +138,12 @@ export default function PricingPage() {
                 <ul className="mt-8 space-y-3">
                   {plan.features.map((f) => (
                     <li key={f.text} className="flex items-start gap-3 text-sm">
-                      <span className={f.included ? "text-green-600" : "text-gray-300 dark:text-gray-600"}>
-                        {f.included ? "✓" : "—"}
-                      </span>
-                      <span className={f.included ? "" : "text-gray-400 dark:text-gray-600"}>
+                      {f.included ? (
+                        <CheckIcon size={16} className="mt-0.5 text-positive" />
+                      ) : (
+                        <CrossIcon size={16} className="mt-0.5 text-text-muted" />
+                      )}
+                      <span className={f.included ? "text-text-secondary" : "text-text-muted"}>
                         {f.text}
                       </span>
                     </li>
@@ -154,13 +155,20 @@ export default function PricingPage() {
 
           {/* FAQ */}
           <div className="mt-20">
-            <h3 className="mb-8 text-center text-2xl font-bold">Questions fréquentes</h3>
-            <div className="space-y-6">
+            <h2 className="mb-8 text-center text-2xl font-bold" style={{ letterSpacing: "-0.03em" }}>
+              Questions fréquentes
+            </h2>
+            <div className="space-y-4">
               {faqs.map((faq) => (
-                <div key={faq.q} className="rounded-lg border border-gray-200 p-6 dark:border-gray-800">
-                  <h4 className="font-semibold">{faq.q}</h4>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{faq.a}</p>
-                </div>
+                <details key={faq.q} className="group rounded border border-border bg-surface-1">
+                  <summary className="cursor-pointer px-6 py-4 font-medium text-text-primary hover:text-amber transition-colors list-none flex items-center justify-between">
+                    {faq.q}
+                    <span className="text-text-muted transition-transform group-open:rotate-180">&#9662;</span>
+                  </summary>
+                  <div className="border-t border-border px-6 py-4 text-sm text-text-secondary">
+                    {faq.a}
+                  </div>
+                </details>
               ))}
             </div>
           </div>
@@ -168,13 +176,13 @@ export default function PricingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 px-6 py-8 dark:border-gray-800">
+      <footer className="border-t border-border px-6 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
-          <div className="text-sm text-gray-500">&copy; {new Date().getFullYear()} JobScout</div>
-          <nav className="flex gap-6 text-sm text-gray-500">
-            <Link href="/legal/privacy" className="hover:text-gray-900 dark:hover:text-white">Confidentialité</Link>
-            <Link href="/legal/terms" className="hover:text-gray-900 dark:hover:text-white">CGU</Link>
-            <Link href="/legal/mentions" className="hover:text-gray-900 dark:hover:text-white">Mentions légales</Link>
+          <div className="text-sm text-text-muted">&copy; {new Date().getFullYear()} JobScout</div>
+          <nav className="flex gap-6 text-sm text-text-muted">
+            <Link href="/legal/privacy" className="hover:text-text-primary transition-colors">Confidentialité</Link>
+            <Link href="/legal/terms" className="hover:text-text-primary transition-colors">CGU</Link>
+            <Link href="/legal/mentions" className="hover:text-text-primary transition-colors">Mentions légales</Link>
           </nav>
         </div>
       </footer>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AuthGuard from "@/components/AuthGuard";
+import AppShell from "@/components/AppShell";
 import { getAdminUsers, getAdminScrapers, getAdminMetrics } from "@/lib/api";
 
 interface AdminUser {
@@ -34,6 +36,15 @@ interface Metrics {
   worker_last_cycle: string | null;
 }
 
+function MetricCard({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded border border-border bg-surface-1 p-4">
+      <p className="text-xs font-medium uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="mt-1 font-mono text-2xl font-bold text-text-primary">{typeof value === "number" ? value.toLocaleString() : value}</p>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [scrapers, setScrapers] = useState<ScraperInfo[]>([]);
@@ -61,166 +72,154 @@ export default function AdminPage() {
     load();
   }, []);
 
-  if (loading) return <div className="p-8 text-gray-400">Chargement des données admin...</div>;
-  if (error) return <div className="p-8 text-red-400">{error}</div>;
+  if (loading) {
+    return (
+      <AuthGuard>
+        <AppShell>
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber border-t-transparent" />
+          </div>
+        </AppShell>
+      </AuthGuard>
+    );
+  }
+
+  if (error) {
+    return (
+      <AuthGuard>
+        <AppShell>
+          <div className="p-8 text-negative">{error}</div>
+        </AppShell>
+      </AuthGuard>
+    );
+  }
 
   const statusColor = (status: string) => {
-    if (status === "running") return "text-green-400";
-    if (status === "error" || status === "crashed") return "text-red-400";
-    return "text-yellow-400";
+    if (status === "running") return "text-positive";
+    if (status === "error" || status === "crashed") return "text-negative";
+    return "text-amber";
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold text-white">Tableau de bord Admin</h1>
+    <AuthGuard>
+      <AppShell>
+        <div className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Admin</h1>
 
-      {/* Métriques business */}
-      {metrics && (
-        <section>
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Métriques business</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard label="Utilisateurs totaux" value={metrics.total_users} />
-            <MetricCard label="Utilisateurs Pro" value={metrics.pro_users} />
-            <MetricCard label="Offres brutes" value={metrics.total_raw_jobs} />
-            <MetricCard label="Offres évaluées" value={metrics.total_scored_jobs} />
-          </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Statut du worker</p>
-              <p className={`text-xl font-bold ${statusColor(metrics.worker_status)}`}>
-                {metrics.worker_status}
-              </p>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Cycles du worker</p>
-              <p className="text-xl font-bold text-white">{metrics.worker_cycles}</p>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-400">Dernier cycle</p>
-              <p className="text-sm text-white">
-                {metrics.worker_last_cycle
-                  ? new Date(metrics.worker_last_cycle).toLocaleString()
-                  : "Jamais"}
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
+          {/* Metrics */}
+          {metrics && (
+            <section>
+              <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-text-muted">Métriques business</h2>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricCard label="Utilisateurs" value={metrics.total_users} />
+                <MetricCard label="Pro" value={metrics.pro_users} />
+                <MetricCard label="Offres brutes" value={metrics.total_raw_jobs} />
+                <MetricCard label="Offres évaluées" value={metrics.total_scored_jobs} />
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="rounded border border-border bg-surface-1 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Worker</p>
+                  <p className={`mt-1 font-mono text-xl font-bold ${statusColor(metrics.worker_status)}`}>
+                    {metrics.worker_status}
+                  </p>
+                </div>
+                <MetricCard label="Cycles" value={metrics.worker_cycles} />
+                <div className="rounded border border-border bg-surface-1 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wider text-text-muted">Dernier cycle</p>
+                  <p className="mt-1 font-mono text-sm text-text-primary">
+                    {metrics.worker_last_cycle ? new Date(metrics.worker_last_cycle).toLocaleString() : "Jamais"}
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
-      {/* Santé des scrapers */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-200 mb-4">Santé des scrapers</h2>
-        {scrapers.length === 0 ? (
-          <p className="text-gray-400">Aucune donnée de scraper disponible.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-gray-400 border-b border-gray-700">
-                <tr>
-                  <th className="py-2 px-3">Source</th>
-                  <th className="py-2 px-3">Exécutions</th>
-                  <th className="py-2 px-3">Taux de succès</th>
-                  <th className="py-2 px-3">Offres trouvées</th>
-                  <th className="py-2 px-3">Nouvelles offres</th>
-                  <th className="py-2 px-3">Dernière exécution</th>
-                  <th className="py-2 px-3">Dernière erreur</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scrapers.map((s) => (
-                  <tr key={s.source} className="border-b border-gray-800 text-gray-300">
-                    <td className="py-2 px-3 font-medium text-white">{s.source}</td>
-                    <td className="py-2 px-3">{s.total_runs}</td>
-                    <td className="py-2 px-3">
-                      <span
-                        className={
-                          s.success_rate >= 80
-                            ? "text-green-400"
-                            : s.success_rate >= 50
-                              ? "text-yellow-400"
-                              : "text-red-400"
-                        }
-                      >
-                        {s.success_rate}%
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">{s.total_jobs_found}</td>
-                    <td className="py-2 px-3">{s.total_jobs_new}</td>
-                    <td className="py-2 px-3 text-xs">
-                      {s.last_run ? new Date(s.last_run).toLocaleString() : "—"}
-                    </td>
-                    <td className="py-2 px-3 text-xs text-red-400 max-w-xs truncate">
-                      {s.last_error || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          {/* Scrapers */}
+          <section>
+            <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-text-muted">Santé des scrapers</h2>
+            {scrapers.length === 0 ? (
+              <p className="text-text-muted">Aucune donnée de scraper disponible.</p>
+            ) : (
+              <div className="overflow-x-auto rounded border border-border">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wider text-text-muted">
+                    <tr>
+                      {["Source", "Exéc.", "Succès", "Offres", "Nouvelles", "Dernier run", "Erreur"].map((h) => (
+                        <th key={h} className="px-3 py-2.5">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {scrapers.map((s) => (
+                      <tr key={s.source} className="text-text-secondary hover:bg-surface-2/50 transition-colors">
+                        <td className="px-3 py-2.5 font-mono font-medium text-text-primary">{s.source}</td>
+                        <td className="px-3 py-2.5 font-mono">{s.total_runs}</td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-3">
+                              <div
+                                className={`h-full rounded-full ${s.success_rate >= 80 ? "bg-positive" : s.success_rate >= 50 ? "bg-amber" : "bg-negative"}`}
+                                style={{ width: `${s.success_rate}%` }}
+                              />
+                            </div>
+                            <span className="font-mono text-xs">{s.success_rate}%</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono">{s.total_jobs_found}</td>
+                        <td className="px-3 py-2.5 font-mono">{s.total_jobs_new}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs">{s.last_run ? new Date(s.last_run).toLocaleString() : "—"}</td>
+                        <td className="px-3 py-2.5 max-w-xs truncate text-xs text-negative">{s.last_error || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
-      {/* Utilisateurs */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-200 mb-4">
-          Utilisateurs ({users.length})
-        </h2>
-        {users.length === 0 ? (
-          <p className="text-gray-400">Aucun utilisateur trouvé.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-gray-400 border-b border-gray-700">
-                <tr>
-                  <th className="py-2 px-3">Nom</th>
-                  <th className="py-2 px-3">Email</th>
-                  <th className="py-2 px-3">Plan</th>
-                  <th className="py-2 px-3">Offres</th>
-                  <th className="py-2 px-3">Configuré</th>
-                  <th className="py-2 px-3">Inscription</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-gray-800 text-gray-300">
-                    <td className="py-2 px-3 font-medium text-white">
-                      {u.name || "—"}
-                    </td>
-                    <td className="py-2 px-3 text-xs">{u.notification_email || "—"}</td>
-                    <td className="py-2 px-3">
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          u.plan === "pro"
-                            ? "bg-blue-900 text-blue-300"
-                            : "bg-gray-700 text-gray-300"
-                        }`}
-                      >
-                        {u.plan}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3">{u.total_jobs}</td>
-                    <td className="py-2 px-3">
-                      {u.onboarding_completed ? "Oui" : "Non"}
-                    </td>
-                    <td className="py-2 px-3 text-xs">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <p className="text-sm text-gray-400">{label}</p>
-      <p className="text-2xl font-bold text-white">{value.toLocaleString()}</p>
-    </div>
+          {/* Users */}
+          <section>
+            <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-text-muted">
+              Utilisateurs ({users.length})
+            </h2>
+            {users.length === 0 ? (
+              <p className="text-text-muted">Aucun utilisateur trouvé.</p>
+            ) : (
+              <div className="overflow-x-auto rounded border border-border">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-surface-2 text-xs uppercase tracking-wider text-text-muted">
+                    <tr>
+                      {["Nom", "Email", "Plan", "Offres", "Config", "Inscription"].map((h) => (
+                        <th key={h} className="px-3 py-2.5">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {users.map((u) => (
+                      <tr key={u.id} className="text-text-secondary hover:bg-surface-2/50 transition-colors">
+                        <td className="px-3 py-2.5 font-medium text-text-primary">{u.name || "—"}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs">{u.notification_email || "—"}</td>
+                        <td className="px-3 py-2.5">
+                          <span className={`rounded px-2 py-0.5 font-mono text-xs font-medium ${
+                            u.plan === "pro" ? "bg-amber/10 text-amber" : "bg-surface-3 text-text-muted"
+                          }`}>
+                            {u.plan}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono">{u.total_jobs}</td>
+                        <td className="px-3 py-2.5">
+                          <span className={`h-2 w-2 inline-block rounded-full ${u.onboarding_completed ? "bg-positive" : "bg-text-muted"}`} />
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs">{new Date(u.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </AppShell>
+    </AuthGuard>
   );
 }
