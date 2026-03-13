@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import JsonLd from "@/components/JsonLd";
+import { organizationJsonLd, softwareApplicationJsonLd } from "@/lib/structured-data";
+
+export const metadata: Metadata = {
+  title: "JobScout — Matching emploi par IA | Scraping & scoring automatique",
+  description:
+    "Scraping de 10+ sites d'emploi, scoring IA personnalisé de 0 à 100, candidature automatique. Trouvez votre prochain poste sans effort.",
+  alternates: { canonical: "https://jobscout.mebarki.dev" },
+};
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={softwareApplicationJsonLd()} />
       {/* Navbar */}
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -31,11 +43,11 @@ export default function LandingPage() {
           <div className="mb-6 inline-block rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
             Matching emploi par IA
           </div>
-          <h2 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Arrêtez de scroller les sites d&apos;emploi.
             <br />
             <span className="text-blue-600">Laissez l&apos;IA trouver votre match.</span>
-          </h2>
+          </h1>
           <p className="mx-auto mb-10 max-w-xl text-lg text-gray-600 dark:text-gray-400">
             JobScout scrape plus de 10 sites d&apos;emploi, évalue chaque offre
             par rapport à votre CV grâce à l&apos;IA, et ne vous envoie que les offres qui valent le coup.
@@ -81,7 +93,7 @@ export default function LandingPage() {
       <section className="px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="mb-12 text-center">
-            <h3 className="mb-3 text-3xl font-bold">Tout ce qu&apos;il faut pour décrocher votre prochain poste</h3>
+            <h2 className="mb-3 text-3xl font-bold">Tout ce qu&apos;il faut pour décrocher votre prochain poste</h2>
             <p className="text-gray-600 dark:text-gray-400">
               Du scraping à la candidature, JobScout automatise toute votre recherche d&apos;emploi.
             </p>
@@ -133,7 +145,7 @@ export default function LandingPage() {
       <section className="border-y border-gray-200 bg-gray-50 px-6 py-20 dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto max-w-4xl">
           <div className="mb-12 text-center">
-            <h3 className="mb-3 text-3xl font-bold">Comment ça marche</h3>
+            <h2 className="mb-3 text-3xl font-bold">Comment ça marche</h2>
             <p className="text-gray-600 dark:text-gray-400">Trois étapes vers votre prochain poste.</p>
           </div>
           <div className="grid gap-10 sm:grid-cols-3">
@@ -170,7 +182,7 @@ export default function LandingPage() {
       <section className="px-6 py-20">
         <div className="mx-auto max-w-4xl">
           <div className="mb-12 text-center">
-            <h3 className="mb-3 text-3xl font-bold">Tarifs simples et transparents</h3>
+            <h2 className="mb-3 text-3xl font-bold">Tarifs simples et transparents</h2>
             <p className="text-gray-600 dark:text-gray-400">Commencez gratuitement, passez à la vitesse supérieure quand vous en avez besoin.</p>
           </div>
           <div className="grid gap-8 sm:grid-cols-2">
@@ -225,7 +237,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="bg-blue-600 px-6 py-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h3 className="mb-4 text-3xl font-bold text-white">Prêt à automatiser votre recherche d&apos;emploi ?</h3>
+          <h2 className="mb-4 text-3xl font-bold text-white">Prêt à automatiser votre recherche d&apos;emploi ?</h2>
           <p className="mb-8 text-blue-100">
             Rejoignez JobScout aujourd&apos;hui. 14 jours d&apos;essai gratuit, annulez à tout moment.
           </p>

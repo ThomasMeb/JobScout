@@ -1,5 +1,9 @@
-export const metadata = {
-  title: "Conditions Générales d'Utilisation — JobScout",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Conditions générales d'utilisation",
+  description: "Conditions générales d'utilisation de JobScout : inscriptions, plans, utilisation, responsabilités.",
+  alternates: { canonical: "https://jobscout.mebarki.dev/legal/terms" },
 };
 
 export default function TermsPage() {

@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import JsonLd from "@/components/JsonLd";
+import { faqJsonLd } from "@/lib/structured-data";
+
+export const metadata: Metadata = {
+  title: "Tarifs",
+  description:
+    "Plans Gratuit et Pro pour JobScout. Essai gratuit 14 jours, scoring IA illimité, alertes Telegram, candidature automatique dès 9$/mois.",
+  alternates: { canonical: "https://jobscout.mebarki.dev/pricing" },
+};
 
 const plans = [
   {
@@ -68,6 +78,11 @@ const faqs = [
 export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-gray-950">
+      <JsonLd
+        data={faqJsonLd(
+          faqs.map((f) => ({ question: f.q, answer: f.a }))
+        )}
+      />
       {/* Navbar */}
       <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">

@@ -1,5 +1,9 @@
-export const metadata = {
-  title: "Mentions Légales — JobScout",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Mentions légales",
+  description: "Mentions légales de JobScout : éditeur, hébergement, propriété intellectuelle.",
+  alternates: { canonical: "https://jobscout.mebarki.dev/legal/mentions" },
 };
 
 export default function MentionsPage() {

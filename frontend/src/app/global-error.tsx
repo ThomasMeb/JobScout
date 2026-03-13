@@ -16,7 +16,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="fr">
       <body className="flex min-h-screen items-center justify-center bg-white px-4 text-gray-900 dark:bg-gray-900 dark:text-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold">

@@ -1,5 +1,9 @@
-export const metadata = {
-  title: "Politique de Confidentialité — JobScout",
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Politique de confidentialité",
+  description: "Politique de confidentialité de JobScout : données collectées, traitements, droits RGPD et sécurité.",
+  alternates: { canonical: "https://jobscout.mebarki.dev/legal/privacy" },
 };
 
 export default function PrivacyPage() {
