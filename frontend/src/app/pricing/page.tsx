@@ -4,6 +4,7 @@ import Logo from "@/components/Logo";
 import JsonLd from "@/components/JsonLd";
 import { faqJsonLd } from "@/lib/structured-data";
 import { CheckIcon, CrossIcon } from "@/components/Icons";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "Tarifs",
@@ -83,9 +84,12 @@ export default function PricingPage() {
       <header className="border-b border-border bg-surface-0/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/"><Logo size="md" /></Link>
-          <Link href="/login" className="rounded bg-amber px-4 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors">
-            Commencer
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/login" className="rounded bg-amber px-4 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors">
+              Commencer
+            </Link>
+          </div>
         </div>
       </header>
 

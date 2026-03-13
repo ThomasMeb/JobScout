@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "@/components/AuthLayout";
 import { GoogleIcon, GitHubIcon, MailIcon, LockIcon } from "@/components/Icons";
 import { createClient } from "@/lib/supabase-browser";
 import { translateAuthError } from "@/lib/auth-errors";
+import { isMockMode } from "@/lib/mock-data";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,11 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const router = useRouter();
   const supabase = createClient();
+
+  // Mock mode: go straight to dashboard
+  useEffect(() => {
+    if (isMockMode()) router.push("/dashboard");
+  }, [router]);
 
   async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();

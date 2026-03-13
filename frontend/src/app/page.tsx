@@ -5,6 +5,7 @@ import JsonLd from "@/components/JsonLd";
 import AnimatedSection from "@/components/AnimatedSection";
 import { organizationJsonLd, softwareApplicationJsonLd } from "@/lib/structured-data";
 import { SearchIcon, TargetIcon, ChartIcon, BellIcon, PenIcon, TrendingIcon, CheckIcon, CrossIcon } from "@/components/Icons";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "JobScout — Matching emploi par IA | Scraping & scoring automatique",
@@ -45,13 +46,14 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border bg-surface-0/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Logo size="md" />
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4">
             <Link href="/pricing" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               Tarifs
             </Link>
             <Link href="/login" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               Se connecter
             </Link>
+            <ThemeToggle />
             <Link
               href="/login"
               className="rounded bg-amber px-4 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors"

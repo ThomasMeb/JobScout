@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 import { HomeIcon, SettingsIcon, CreditCardIcon, ShieldIcon, MenuIcon, CrossIcon, LogOutIcon } from "@/components/Icons";
+import ThemeToggle from "@/components/ThemeToggle";
 import { createClient } from "@/lib/supabase-browser";
+import { isMockMode } from "@/lib/mock-data";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: HomeIcon },
@@ -20,7 +22,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    if (!isMockMode()) await supabase.auth.signOut();
     window.location.href = "/";
   }
 
@@ -55,7 +57,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 space-y-1">
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-xs text-text-muted">Thème</span>
+          <ThemeToggle />
+        </div>
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded px-3 py-2.5 text-sm text-text-muted hover:text-negative hover:bg-surface-3 transition-colors"

@@ -1,3 +1,17 @@
+import {
+  isMockMode,
+  MOCK_PROFILE,
+  MOCK_STATS,
+  MOCK_CHART_DATA,
+  MOCK_SCRAPE_RUNS,
+  MOCK_JOBS,
+  MOCK_BILLING,
+  MOCK_ADMIN_USERS,
+  MOCK_ADMIN_SCRAPERS,
+  MOCK_ADMIN_METRICS,
+  getMockJobs,
+} from "./mock-data";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function fetchAPI(path: string, options: RequestInit = {}) {
@@ -27,9 +41,13 @@ async function fetchAPI(path: string, options: RequestInit = {}) {
 }
 
 // Profile
-export const getProfile = () => fetchAPI("/api/profile/");
+export const getProfile = () =>
+  isMockMode() ? Promise.resolve(MOCK_PROFILE) : fetchAPI("/api/profile/");
+
 export const updateProfile = (data: Record<string, unknown>) =>
-  fetchAPI("/api/profile/", { method: "PATCH", body: JSON.stringify(data) });
+  isMockMode()
+    ? Promise.resolve({ ...MOCK_PROFILE, ...data })
+    : fetchAPI("/api/profile/", { method: "PATCH", body: JSON.stringify(data) });
 
 // Jobs
 export interface JobFilters {
@@ -42,6 +60,8 @@ export interface JobFilters {
 }
 
 export const getJobs = (filters: JobFilters = {}) => {
+  if (isMockMode()) return Promise.resolve(getMockJobs(filters));
+
   const params = new URLSearchParams();
   if (filters.page) params.set("page", String(filters.page));
   if (filters.per_page) params.set("per_page", String(filters.per_page));
@@ -52,22 +72,59 @@ export const getJobs = (filters: JobFilters = {}) => {
   return fetchAPI(`/api/jobs/?${params}`);
 };
 
-export const bulkFeedback = (jobIds: number[], status: string) =>
-  fetchAPI("/api/jobs/bulk/feedback", {
+export const bulkFeedback = (jobIds: number[], status: string) => {
+  if (isMockMode()) {
+    jobIds.forEach((id) => {
+      const job = MOCK_JOBS.find((j) => j.id === id);
+      if (job) job.status = status;
+    });
+    return Promise.resolve({ updated: jobIds.length });
+  }
+  return fetchAPI("/api/jobs/bulk/feedback", {
     method: "PATCH",
     body: JSON.stringify({ job_ids: jobIds, status }),
   });
+};
 
-export const getJob = (id: number) => fetchAPI(`/api/jobs/${id}`);
+export const getJob = (id: number) => {
+  if (isMockMode()) {
+    const job = MOCK_JOBS.find((j) => j.id === id);
+    return job ? Promise.resolve(job) : Promise.reject(new Error("Job not found"));
+  }
+  return fetchAPI(`/api/jobs/${id}`);
+};
 
-export const updateJobFeedback = (id: number, status: string, notes?: string) =>
-  fetchAPI(`/api/jobs/${id}/feedback`, {
+export const updateJobFeedback = (id: number, status: string, notes?: string) => {
+  if (isMockMode()) {
+    const job = MOCK_JOBS.find((j) => j.id === id);
+    if (job) {
+      job.status = status;
+      if (notes !== undefined) job.user_notes = notes;
+    }
+    return Promise.resolve(job);
+  }
+  return fetchAPI(`/api/jobs/${id}/feedback`, {
     method: "PATCH",
     body: JSON.stringify({ status, user_notes: notes }),
   });
+};
 
 // Export
 export const exportJobsCSV = async (filters: JobFilters = {}) => {
+  if (isMockMode()) {
+    const { jobs } = getMockJobs(filters);
+    const header = "title,company,score,status,source,location\n";
+    const rows = jobs.map((j) => `"${j.title}","${j.company}",${j.match_score},"${j.status}","${j.source}","${j.location}"`).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "jobscout-export.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    return;
+  }
+
   const params = new URLSearchParams();
   if (filters.min_score) params.set("min_score", String(filters.min_score));
   if (filters.status) params.set("status", filters.status);
@@ -100,26 +157,42 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
 
 // Account
 export const deleteAccount = () =>
-  fetchAPI("/api/profile/", { method: "DELETE" });
+  isMockMode() ? Promise.resolve({ ok: true }) : fetchAPI("/api/profile/", { method: "DELETE" });
 
 // Billing
-export const getBillingStatus = () => fetchAPI("/api/billing/status");
+export const getBillingStatus = () =>
+  isMockMode() ? Promise.resolve(MOCK_BILLING) : fetchAPI("/api/billing/status");
+
 export const createCheckout = () =>
-  fetchAPI("/api/billing/checkout", { method: "POST" });
+  isMockMode()
+    ? Promise.resolve({ url: "/dashboard/billing" })
+    : fetchAPI("/api/billing/checkout", { method: "POST" });
+
 export const createPortal = () =>
-  fetchAPI("/api/billing/portal", { method: "POST" });
+  isMockMode()
+    ? Promise.resolve({ url: "/dashboard/billing" })
+    : fetchAPI("/api/billing/portal", { method: "POST" });
 
 // Admin
-export const getAdminUsers = () => fetchAPI("/api/admin/users");
-export const getAdminScrapers = () => fetchAPI("/api/admin/scrapers");
-export const getAdminMetrics = () => fetchAPI("/api/admin/metrics");
+export const getAdminUsers = () =>
+  isMockMode() ? Promise.resolve(MOCK_ADMIN_USERS) : fetchAPI("/api/admin/users");
+
+export const getAdminScrapers = () =>
+  isMockMode() ? Promise.resolve(MOCK_ADMIN_SCRAPERS) : fetchAPI("/api/admin/scrapers");
+
+export const getAdminMetrics = () =>
+  isMockMode() ? Promise.resolve(MOCK_ADMIN_METRICS) : fetchAPI("/api/admin/metrics");
 
 // Stats
-export const getStats = () => fetchAPI("/api/stats/");
+export const getStats = () =>
+  isMockMode() ? Promise.resolve(MOCK_STATS) : fetchAPI("/api/stats/");
 
 // Charts
-export const getChartData = () => fetchAPI("/api/stats/charts");
+export const getChartData = () =>
+  isMockMode() ? Promise.resolve(MOCK_CHART_DATA) : fetchAPI("/api/stats/charts");
 
 // Scrape runs
 export const getScrapeRuns = (limit = 10) =>
-  fetchAPI(`/api/scrape-runs/?limit=${limit}`);
+  isMockMode()
+    ? Promise.resolve(MOCK_SCRAPE_RUNS.slice(0, limit))
+    : fetchAPI(`/api/scrape-runs/?limit=${limit}`);

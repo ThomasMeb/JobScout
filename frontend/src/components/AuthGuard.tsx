@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+import { isMockMode } from "@/lib/mock-data";
 import type { Session } from "@supabase/supabase-js";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Mock mode: skip auth entirely
+    if (isMockMode()) {
+      setSession({ access_token: "mock-token", user: { id: "mock-user-001", email: "thomas@mebarki.dev" } } as unknown as Session);
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {

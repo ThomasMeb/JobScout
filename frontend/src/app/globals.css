@@ -2,40 +2,64 @@
 
 /* ============================================
    Signal Noir Design System
-   Bloomberg terminal × éditorial français
+   Bloomberg terminal × presse éditoriale
    ============================================ */
 
+/* ---------- Dark mode (default) ---------- */
 :root {
-  /* Amber signal */
   --amber: #F59E0B;
   --amber-bright: #FBBF24;
   --amber-dim: #D97706;
   --amber-glow: #F59E0B33;
 
-  /* Surfaces */
-  --surface-0: #0C0C0E;
-  --surface-1: #141416;
-  --surface-2: #1C1C20;
-  --surface-3: #26262B;
+  --surface-0: #08080A;
+  --surface-1: #111113;
+  --surface-2: #1A1A1E;
+  --surface-3: #242428;
 
-  /* Text */
-  --text-primary: #F4F4F5;
-  --text-secondary: #A1A1AA;
-  --text-muted: #52525B;
+  --text-primary: #F0F0F2;
+  --text-secondary: #9C9CA8;
+  --text-muted: #56565F;
 
-  /* Borders */
-  --border: #27272A;
-  --border-hover: #3F3F46;
+  --border: #25252A;
+  --border-hover: #38383F;
 
-  /* Accents */
-  --positive: #34D399;
-  --negative: #F87171;
-  --info: #60A5FA;
-  --purple: #A78BFA;
+  --positive: #22C55E;
+  --negative: #EF4444;
+  --info: #3B82F6;
+  --purple: #8B5CF6;
 
-  /* Mapped */
   --background: var(--surface-0);
   --foreground: var(--text-primary);
+
+  color-scheme: dark;
+}
+
+/* ---------- Light mode ---------- */
+[data-theme="light"] {
+  --amber: #D97706;
+  --amber-bright: #B45309;
+  --amber-dim: #92400E;
+  --amber-glow: #D9770622;
+
+  --surface-0: #F8F7F4;
+  --surface-1: #FFFFFF;
+  --surface-2: #F0EFE9;
+  --surface-3: #E6E4DD;
+
+  --text-primary: #1A1917;
+  --text-secondary: #5C5B57;
+  --text-muted: #9C9B97;
+
+  --border: #E0DED6;
+  --border-hover: #C8C6BE;
+
+  --positive: #16A34A;
+  --negative: #DC2626;
+  --info: #2563EB;
+  --purple: #7C3AED;
+
+  color-scheme: light;
 }
 
 @theme inline {
@@ -78,28 +102,23 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+::selection {
+  background: var(--amber);
+  color: var(--surface-0);
+}
+
 /* ============================================
    Keyframes
    ============================================ */
 
 @keyframes reveal-up {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes signal-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 @keyframes fade-in {
@@ -108,25 +127,13 @@ body {
 }
 
 @keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes gradient-shift {
@@ -135,7 +142,21 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-/* Counter animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes border-dance {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+
 @property --num {
   syntax: "<integer>";
   initial-value: 0;
@@ -150,12 +171,16 @@ body {
    Utility classes
    ============================================ */
 
-/* Signal glow on hover */
+/* Signal glow — dark only */
 .signal-glow {
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
-.signal-glow:hover {
-  box-shadow: 0 0 20px var(--amber-glow), 0 0 40px var(--amber-glow);
+:root .signal-glow:hover {
+  box-shadow: 0 0 20px var(--amber-glow), 0 0 60px var(--amber-glow);
+  border-color: var(--amber);
+}
+[data-theme="light"] .signal-glow:hover {
+  box-shadow: 0 4px 24px var(--amber-glow);
   border-color: var(--amber);
 }
 
@@ -164,71 +189,104 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  opacity: 0.03;
+  opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
   pointer-events: none;
   z-index: 0;
 }
-.noise {
-  position: relative;
-}
+.noise { position: relative; }
 
-/* Hero dot grid background */
+/* Hero dot grid */
 .hero-grid {
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* Reveal animations */
-.reveal {
-  animation: reveal-up 0.6s ease-out both;
-}
+.reveal { animation: reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .reveal-d1 { animation-delay: 0.1s; }
 .reveal-d2 { animation-delay: 0.2s; }
 .reveal-d3 { animation-delay: 0.3s; }
 .reveal-d4 { animation-delay: 0.4s; }
 .reveal-d5 { animation-delay: 0.5s; }
 
-/* Card hover effect */
+/* Card hover — border shift + lift */
 .card-hover {
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 .card-hover:hover {
   border-color: var(--amber-dim);
-  box-shadow: 0 0 16px var(--amber-glow);
+  box-shadow: 0 0 20px var(--amber-glow);
+  transform: translateY(-2px);
 }
 
-/* Counter display */
+/* Counter */
 .counter {
-  transition: --num 1s ease-out;
+  transition: --num 1.5s cubic-bezier(0.22, 1, 0.36, 1);
   counter-reset: num var(--num);
   font-variant-numeric: tabular-nums;
 }
-.counter::after {
-  content: counter(num);
-}
+.counter::after { content: counter(num); }
 
 /* Amber gradient text */
 .text-amber-gradient {
-  background: linear-gradient(135deg, var(--amber-bright), var(--amber-dim));
+  background: linear-gradient(135deg, var(--amber-bright), var(--amber));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Label uppercase style */
+/* Label uppercase */
 .label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-/* Score ring gradient */
+/* Score ring */
 .score-ring {
   stroke-linecap: round;
   transition: stroke-dashoffset 1s ease-out;
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, var(--amber), var(--purple), var(--amber));
+  background-size: 200% 100%;
+  animation: border-dance 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Diagonal stripe pattern */
+.stripe-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    var(--border) 4px,
+    var(--border) 5px
+  );
+}
+
+/* Oversized display number */
+.display-number {
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
 }
