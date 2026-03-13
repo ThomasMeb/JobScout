@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Job } from "@/lib/types";
 import { updateJobFeedback } from "@/lib/api";
 import { ScoreBadge, StatusBadge, RemoteBadge } from "@/components/Badges";
+import { ExternalLinkIcon } from "@/components/Icons";
 
 export default function JobCard({
   job,
@@ -25,15 +26,17 @@ export default function JobCard({
     }
   }
 
+  const scoreColor = job.match_priority === "high" ? "border-l-positive" : job.match_priority === "medium" ? "border-l-amber" : "border-l-negative";
+
   return (
     <div
-      className={`rounded-lg border p-4 ${
+      className={`rounded border border-l-2 p-4 transition-colors ${
         selected
-          ? "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950"
-          : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+          ? `border-amber/30 ${scoreColor} bg-amber/5`
+          : `border-border ${scoreColor} bg-surface-1`
       }`}
     >
-      {/* Top row: checkbox + score + status */}
+      {/* Top row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {onToggleSelect && (
@@ -41,27 +44,24 @@ export default function JobCard({
               type="checkbox"
               checked={selected || false}
               onChange={() => onToggleSelect(job.id)}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-border accent-amber"
             />
           )}
           <ScoreBadge score={job.match_score} priority={job.match_priority} />
           <StatusBadge status={job.status} />
         </div>
-        <span className="text-xs text-gray-400">{job.source}</span>
+        <span className="font-mono text-xs text-text-muted">{job.source}</span>
       </div>
 
       {/* Title */}
-      <Link
-        href={`/dashboard/${job.id}`}
-        className="mt-2 block text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"
-      >
+      <Link href={`/dashboard/${job.id}`} className="mt-2 block text-sm font-semibold text-amber hover:text-amber-bright transition-colors">
         {job.title}
       </Link>
 
       {/* Company + Location */}
-      <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{job.company}</p>
+      <p className="mt-1 text-sm text-text-secondary">{job.company}</p>
       <div className="mt-0.5 flex items-center gap-2 text-sm">
-        <span className="text-gray-500 dark:text-gray-400">{job.location || "\u2014"}</span>
+        <span className="text-text-muted">{job.location || "\u2014"}</span>
         <RemoteBadge type={job.remote_type} />
       </div>
 
@@ -71,13 +71,13 @@ export default function JobCard({
           <>
             <button
               onClick={() => handleFeedback("interested")}
-              className="flex-1 rounded-lg bg-green-600 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+              className="flex-1 rounded bg-positive py-1.5 text-xs font-medium text-surface-0 hover:brightness-110 transition"
             >
               Intéressé
             </button>
             <button
               onClick={() => handleFeedback("rejected")}
-              className="flex-1 rounded-lg bg-gray-200 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              className="flex-1 rounded bg-surface-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-border-hover transition-colors"
             >
               Refuser
             </button>
@@ -88,12 +88,11 @@ export default function JobCard({
             href={job.source_url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`rounded-lg border border-blue-200 py-1.5 text-center text-xs font-medium text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 ${
-              job.status === "new" ? "" : "flex-1"
+            className={`flex items-center justify-center gap-1 rounded border border-amber/30 py-1.5 text-xs font-medium text-amber hover:bg-amber/10 transition-colors ${
+              job.status === "new" ? "px-3" : "flex-1"
             }`}
-            style={job.status !== "new" ? {} : { padding: "0 12px" }}
           >
-            Voir
+            <ExternalLinkIcon size={12} /> Voir
           </a>
         )}
       </div>

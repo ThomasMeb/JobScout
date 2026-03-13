@@ -1,38 +1,49 @@
 "use client";
 
 export function ScoreBadge({ score, priority }: { score: number | null; priority: string }) {
-  if (score === null) return <span className="text-gray-400">&mdash;</span>;
+  if (score === null) return <span className="text-text-muted">&mdash;</span>;
 
   const colors: Record<string, string> = {
-    high: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    low: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    high: "bg-positive/15 text-positive",
+    medium: "bg-amber/15 text-amber-bright",
+    low: "bg-negative/15 text-negative",
   };
 
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${colors[priority] || colors.low}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded px-2.5 py-0.5 font-mono text-xs font-medium ${colors[priority] || colors.low}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${priority === "high" ? "bg-positive" : priority === "medium" ? "bg-amber" : "bg-negative"}`} />
       {Math.round(score)}
     </span>
   );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    new: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    interested: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    applied: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-    rejected: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  const config: Record<string, { bg: string; dot: string }> = {
+    new: { bg: "bg-info/10 text-info", dot: "bg-info" },
+    interested: { bg: "bg-positive/10 text-positive", dot: "bg-positive" },
+    applied: { bg: "bg-purple/10 text-purple", dot: "bg-purple" },
+    rejected: { bg: "bg-surface-3 text-text-muted", dot: "bg-text-muted" },
   };
 
+  const labels: Record<string, string> = {
+    new: "Nouveau",
+    interested: "Intéressé",
+    applied: "Postulé",
+    rejected: "Refusé",
+  };
+
+  const c = config[status] || config.new;
+
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] || colors.new}`}>
-      {{ new: "Nouveau", interested: "Intéressé", applied: "Postulé", rejected: "Refusé" }[status] || status}
+    <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium ${c.bg}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
+      {labels[status] || status}
     </span>
   );
 }
 
 export function RemoteBadge({ type }: { type: string }) {
-  if (type === "full") return <span className="text-xs text-green-600 dark:text-green-400">Télétravail</span>;
-  if (type === "partial") return <span className="text-xs text-blue-600 dark:text-blue-400">Hybride</span>;
-  return <span className="text-xs text-gray-500 dark:text-gray-400">Sur site</span>;
+  if (type === "full") return <span className="text-xs text-positive">Télétravail</span>;
+  if (type === "partial") return <span className="text-xs text-info">Hybride</span>;
+  return <span className="text-xs text-text-muted">Sur site</span>;
 }

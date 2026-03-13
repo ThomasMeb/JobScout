@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Job } from "@/lib/types";
 import { updateJobFeedback } from "@/lib/api";
 import { ScoreBadge, StatusBadge, RemoteBadge } from "@/components/Badges";
+import { ExternalLinkIcon, CheckIcon, CrossIcon } from "@/components/Icons";
 
 export default function JobTable({
   jobs,
@@ -31,8 +32,8 @@ export default function JobTable({
 
   if (!jobs.length) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center dark:border-gray-600">
-        <p className="text-gray-500 dark:text-gray-400">
+      <div className="rounded border border-dashed border-border p-12 text-center">
+        <p className="text-text-muted">
           Aucune offre trouvée. Vos offres apparaîtront au prochain cycle de scoring (toutes les 4 heures).
         </p>
       </div>
@@ -40,9 +41,9 @@ export default function JobTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-800">
+    <div className="overflow-x-auto rounded border border-border">
+      <table className="min-w-full divide-y divide-border">
+        <thead className="bg-surface-2">
           <tr>
             {hasSelection && (
               <th className="px-3 py-3">
@@ -50,25 +51,21 @@ export default function JobTable({
                   type="checkbox"
                   checked={selected.size === jobs.length && jobs.length > 0}
                   onChange={onToggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-border accent-amber"
                 />
               </th>
             )}
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titre</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entreprise</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lieu</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            {["Score", "Titre", "Entreprise", "Lieu", "Source", "Statut", "Actions"].map((h) => (
+              <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-muted">{h}</th>
+            ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+        <tbody className="divide-y divide-border bg-surface-1">
           {jobs.map((job) => (
             <tr
               key={job.id}
-              className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                hasSelection && selected.has(job.id) ? "bg-blue-50 dark:bg-blue-950" : ""
+              className={`transition-colors hover:bg-amber/5 ${
+                hasSelection && selected.has(job.id) ? "border-l-2 border-l-amber bg-amber/5" : ""
               }`}
             >
               {hasSelection && (
@@ -77,7 +74,7 @@ export default function JobTable({
                     type="checkbox"
                     checked={selected.has(job.id)}
                     onChange={() => onToggleSelect(job.id)}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-border accent-amber"
                   />
                 </td>
               )}
@@ -85,40 +82,32 @@ export default function JobTable({
                 <ScoreBadge score={job.match_score} priority={job.match_priority} />
               </td>
               <td className="px-4 py-3">
-                <Link
-                  href={`/dashboard/${job.id}`}
-                  className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-                >
+                <Link href={`/dashboard/${job.id}`} className="font-medium text-amber hover:text-amber-bright transition-colors">
                   {job.title}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                {job.company}
-              </td>
+              <td className="px-4 py-3 text-sm text-text-secondary">{job.company}</td>
               <td className="px-4 py-3 text-sm">
-                <span className="text-gray-600 dark:text-gray-400">{job.location || "\u2014"}</span>
-                {" "}
+                <span className="text-text-secondary">{job.location || "\u2014"}</span>{" "}
                 <RemoteBadge type={job.remote_type} />
               </td>
-              <td className="px-4 py-3 text-sm text-gray-500">{job.source}</td>
-              <td className="px-4 py-3">
-                <StatusBadge status={job.status} />
-              </td>
+              <td className="px-4 py-3 font-mono text-xs text-text-muted">{job.source}</td>
+              <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
               <td className="px-4 py-3">
                 <div className="flex gap-1">
                   {job.status === "new" && (
                     <>
                       <button
                         onClick={() => handleFeedback(job.id, "interested")}
-                        className="rounded bg-green-100 px-2 py-1 text-xs text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
+                        className="flex items-center gap-1 rounded bg-positive/10 px-2 py-1 text-xs text-positive hover:bg-positive/20 transition-colors"
                       >
-                        Intéressé
+                        <CheckIcon size={12} /> Intéressé
                       </button>
                       <button
                         onClick={() => handleFeedback(job.id, "rejected")}
-                        className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                        className="flex items-center gap-1 rounded bg-surface-3 px-2 py-1 text-xs text-text-muted hover:bg-surface-3/80 transition-colors"
                       >
-                        Refuser
+                        <CrossIcon size={12} /> Refuser
                       </button>
                     </>
                   )}
@@ -127,9 +116,9 @@ export default function JobTable({
                       href={job.source_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300"
+                      className="flex items-center gap-1 rounded bg-amber/10 px-2 py-1 text-xs text-amber hover:bg-amber/20 transition-colors"
                     >
-                      Voir
+                      <ExternalLinkIcon size={12} /> Voir
                     </a>
                   )}
                 </div>
