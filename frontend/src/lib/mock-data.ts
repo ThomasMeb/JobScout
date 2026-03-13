@@ -325,32 +325,38 @@ export const MOCK_BILLING = {
 
 // ─── Admin ─────────────────────────────────────────────────
 
-export const MOCK_ADMIN_USERS = [
-  { id: "u1", name: "Thomas Mebarki", email: "thomas@mebarki.dev", plan: "pro", total_jobs: 247, onboarding_completed: true, created_at: "2026-01-15T10:00:00Z" },
-  { id: "u2", name: "Marie Dupont", email: "marie.dupont@gmail.com", plan: "free", total_jobs: 34, onboarding_completed: true, created_at: "2026-02-20T14:30:00Z" },
-  { id: "u3", name: "Lucas Martin", email: "lucas.martin@outlook.fr", plan: "pro", total_jobs: 189, onboarding_completed: true, created_at: "2026-01-28T09:15:00Z" },
-  { id: "u4", name: "Sophie Bernard", email: "s.bernard@icloud.com", plan: "trial", total_jobs: 12, onboarding_completed: false, created_at: "2026-03-10T16:45:00Z" },
-  { id: "u5", name: "Ahmed Benali", email: "a.benali@proton.me", plan: "pro", total_jobs: 156, onboarding_completed: true, created_at: "2026-02-05T11:20:00Z" },
-];
+export const MOCK_ADMIN_USERS = {
+  users: [
+    { id: "u1", name: "Thomas Mebarki", notification_email: "thomas@mebarki.dev", plan: "pro", total_jobs: 247, onboarding_completed: true, created_at: "2026-01-15T10:00:00Z" },
+    { id: "u2", name: "Marie Dupont", notification_email: "marie.dupont@gmail.com", plan: "free", total_jobs: 34, onboarding_completed: true, created_at: "2026-02-20T14:30:00Z" },
+    { id: "u3", name: "Lucas Martin", notification_email: "lucas.martin@outlook.fr", plan: "pro", total_jobs: 189, onboarding_completed: true, created_at: "2026-01-28T09:15:00Z" },
+    { id: "u4", name: "Sophie Bernard", notification_email: "s.bernard@icloud.com", plan: "trial", total_jobs: 12, onboarding_completed: false, created_at: "2026-03-10T16:45:00Z" },
+    { id: "u5", name: "Ahmed Benali", notification_email: "a.benali@proton.me", plan: "pro", total_jobs: 156, onboarding_completed: true, created_at: "2026-02-05T11:20:00Z" },
+  ],
+};
 
 export const MOCK_ADMIN_METRICS = {
   total_users: 5,
   pro_users: 3,
-  raw_jobs: 1247,
-  scored_jobs: 1089,
+  total_raw_jobs: 1247,
+  total_scored_jobs: 1089,
   worker_status: "running",
-  cycles: 342,
+  worker_cycles: 342,
+  worker_last_cycle: daysAgo(0),
 };
 
-export const MOCK_ADMIN_SCRAPERS = MOCK_SCRAPE_RUNS.filter((r) => r.status === "success").map((r) => ({
-  source: r.source,
-  runs: Math.floor(Math.random() * 100) + 50,
-  success_rate: r.status === "success" ? 0.95 + Math.random() * 0.05 : 0.7,
-  jobs_found: r.jobs_found * 10,
-  jobs_new: r.jobs_new * 10,
-  last_run: r.started_at,
-  errors: 0,
-}));
+export const MOCK_ADMIN_SCRAPERS = {
+  scrapers: MOCK_SCRAPE_RUNS.filter((r) => r.status === "success").map((r, i) => ({
+    source: r.source,
+    total_runs: [87, 92, 85, 91, 78, 83, 65, 70, 88][i] ?? 50,
+    success_runs: [84, 90, 82, 88, 75, 80, 60, 65, 85][i] ?? 45,
+    success_rate: [97, 98, 96, 97, 96, 96, 92, 93, 97][i] ?? 95,
+    total_jobs_found: r.jobs_found * 12,
+    total_jobs_new: r.jobs_new * 12,
+    last_run: r.started_at,
+    last_error: null,
+  })),
+};
 
 // ─── Mock API helper ──────────────────────────────────────
 
