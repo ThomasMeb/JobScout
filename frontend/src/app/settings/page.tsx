@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
+import AppShell from "@/components/AppShell";
 import ProfileForm from "@/components/ProfileForm";
 import { deleteAccount, getProfile, updateProfile } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import type { Profile } from "@/lib/types";
+import { CheckIcon, BellIcon } from "@/components/Icons";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,12 +31,6 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 3000);
   }
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
   async function handleDeleteAccount() {
     setDeleting(true);
     try {
@@ -52,111 +47,83 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <AuthGuard>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        </div>
+        <AppShell>
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber border-t-transparent" />
+          </div>
+        </AppShell>
       </AuthGuard>
     );
   }
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <nav className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400">
-                &larr; Tableau de bord
-              </Link>
-              <h1 className="text-lg font-bold">Paramètres</h1>
+      <AppShell>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Paramètres</h1>
+              <p className="mt-1 text-sm text-text-secondary">Gérez votre profil et vos préférences.</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-700"
-            >
-              Se déconnecter
-            </button>
-          </div>
-        </nav>
 
-        <div className="mx-auto max-w-2xl space-y-8 px-6 py-8">
-          {saved && (
-            <div className="rounded-lg bg-green-50 p-3 text-center text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
-              Paramètres enregistrés avec succès !
-            </div>
-          )}
-
-          {/* Profile & Job Preferences */}
-          {profile && (
-            <ProfileForm profile={profile} onSubmit={handleSubmit} mode="settings" />
-          )}
-
-          {/* Telegram Setup Guide */}
-          <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-            <h2 className="mb-3 text-lg font-semibold">Notifications Telegram</h2>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Recevez des notifications instantanées pour les offres les mieux notées sur Telegram.
-            </p>
-            <ol className="list-inside list-decimal space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <li>
-                Ouvrez Telegram et cherchez <strong>@JobScoutNotifBot</strong>
-              </li>
-              <li>
-                Envoyez <code>/start</code> au bot
-              </li>
-              <li>
-                Le bot vous fournira votre Chat ID — collez-le dans le champ Telegram Chat ID ci-dessus
-              </li>
-            </ol>
-            {profile?.telegram_chat_id ? (
-              <div className="mt-4 flex items-center gap-2 text-sm text-green-600">
-                <span>&#10003;</span>
-                <span>Telegram connecté (Chat ID : {profile.telegram_chat_id})</span>
-              </div>
-            ) : (
-              <div className="mt-4 text-sm text-yellow-600 dark:text-yellow-400">
-                Telegram pas encore connecté.
+            {saved && (
+              <div className="flex items-center gap-2 rounded border border-positive/30 bg-positive/5 p-3 text-sm text-positive">
+                <CheckIcon size={16} /> Paramètres enregistrés avec succès !
               </div>
             )}
-          </div>
 
-          {/* Danger Zone */}
-          <div className="rounded-xl border border-red-200 p-6 dark:border-red-900">
-            <h2 className="mb-3 text-lg font-semibold text-red-600">Zone de danger</h2>
+            {profile && <ProfileForm profile={profile} onSubmit={handleSubmit} mode="settings" />}
 
-            {!deleteConfirm ? (
-              <button
-                onClick={() => setDeleteConfirm(true)}
-                className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950"
-              >
-                Supprimer mon compte
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-red-600">
-                  Cela supprimera définitivement votre compte et toutes vos données (profil, offres, candidatures).
-                  Cette action est irréversible.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={deleting}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {deleting ? "Suppression..." : "Oui, supprimer mon compte"}
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(false)}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900"
-                  >
-                    Annuler
-                  </button>
+            {/* Telegram Setup Guide */}
+            <div className="rounded border border-border bg-surface-1 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <BellIcon size={18} className="text-amber" />
+                <h2 className="text-lg font-semibold">Notifications Telegram</h2>
+              </div>
+              <p className="mb-4 text-sm text-text-secondary">
+                Recevez des notifications instantanées pour les offres les mieux notées.
+              </p>
+              <ol className="list-inside list-decimal space-y-2 text-sm text-text-secondary">
+                <li>Ouvrez Telegram et cherchez <strong className="text-text-primary">@JobScoutNotifBot</strong></li>
+                <li>Envoyez <code className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-amber">/start</code> au bot</li>
+                <li>Le bot vous fournira votre Chat ID — collez-le ci-dessus</li>
+              </ol>
+              {profile?.telegram_chat_id ? (
+                <div className="mt-4 flex items-center gap-2 text-sm text-positive">
+                  <CheckIcon size={14} />
+                  Telegram connecté (Chat ID : <span className="font-mono">{profile.telegram_chat_id}</span>)
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="mt-4 text-sm text-amber">Telegram pas encore connecté.</div>
+              )}
+            </div>
+
+            {/* Danger Zone */}
+            <div className="rounded border border-negative/30 bg-surface-1 p-6">
+              <h2 className="mb-3 text-lg font-semibold text-negative">Zone de danger</h2>
+              {!deleteConfirm ? (
+                <button onClick={() => setDeleteConfirm(true)} className="rounded border border-negative/30 px-4 py-2 text-sm text-negative hover:bg-negative/5 transition-colors">
+                  Supprimer mon compte
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-negative">
+                    Cela supprimera définitivement votre compte et toutes vos données. Cette action est irréversible.
+                  </p>
+                  <div className="flex gap-3">
+                    <button onClick={handleDeleteAccount} disabled={deleting} className="rounded bg-negative px-4 py-2 text-sm font-medium text-white hover:brightness-110 disabled:opacity-50 transition">
+                      {deleting ? "Suppression..." : "Oui, supprimer mon compte"}
+                    </button>
+                    <button onClick={() => setDeleteConfirm(false)} className="rounded border border-border px-4 py-2 text-sm text-text-secondary hover:border-border-hover transition-colors">
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </AppShell>
     </AuthGuard>
   );
 }

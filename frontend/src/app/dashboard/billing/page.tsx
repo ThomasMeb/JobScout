@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import AuthGuard from "@/components/AuthGuard";
+import AppShell from "@/components/AppShell";
 import { createCheckout, createPortal, getBillingStatus, getProfile, getStats } from "@/lib/api";
+import { CheckIcon, CreditCardIcon } from "@/components/Icons";
 import type { UserStats } from "@/lib/types";
 
 interface BillingInfo {
@@ -22,11 +23,7 @@ export default function BillingPage() {
 
   useEffect(() => {
     Promise.all([getBillingStatus(), getStats(), getProfile()])
-      .then(([b, s, p]) => {
-        setBilling(b);
-        setStats(s);
-        setProfilePlan(p.plan || "free");
-      })
+      .then(([b, s, p]) => { setBilling(b); setStats(s); setProfilePlan(p.plan || "free"); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -36,9 +33,7 @@ export default function BillingPage() {
     try {
       const { checkout_url } = await createCheckout();
       if (checkout_url) window.location.href = checkout_url;
-    } catch (e) {
-      console.error("Checkout failed:", e);
-    }
+    } catch (e) { console.error("Checkout failed:", e); }
     setActionLoading(false);
   }
 
@@ -47,9 +42,7 @@ export default function BillingPage() {
     try {
       const { portal_url } = await createPortal();
       if (portal_url) window.location.href = portal_url;
-    } catch (e) {
-      console.error("Portal failed:", e);
-    }
+    } catch (e) { console.error("Portal failed:", e); }
     setActionLoading(false);
   }
 
@@ -59,139 +52,118 @@ export default function BillingPage() {
   if (loading) {
     return (
       <AuthGuard>
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        </div>
+        <AppShell>
+          <div className="flex min-h-[50vh] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber border-t-transparent" />
+          </div>
+        </AppShell>
       </AuthGuard>
     );
   }
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <nav className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400">
-                &larr; Tableau de bord
-              </Link>
-              <h1 className="text-lg font-bold">Abonnement</h1>
+      <AppShell>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Abonnement</h1>
+              <p className="mt-1 text-sm text-text-secondary">Gérez votre plan et votre utilisation.</p>
             </div>
-            <Link
-              href="/settings"
-              className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            >
-              Paramètres
-            </Link>
-          </div>
-        </nav>
 
-        <div className="mx-auto max-w-2xl space-y-8 px-6 py-8">
-          {/* Current Plan */}
-          <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-            <h2 className="mb-1 text-lg font-semibold">Plan actuel</h2>
-            <div className="flex items-center gap-3">
-              <span className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
-                isPro
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                  : isTrial
-                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                    : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-              }`}>
-                {isPro ? "Pro" : isTrial ? "Essai" : "Gratuit"}
-              </span>
-              {isPro && <span className="text-sm text-gray-500">9 $/mois</span>}
-              {isTrial && billing?.trial_started_at && (
-                <span className="text-sm text-gray-500">
-                  Essai démarré le {new Date(billing.trial_started_at).toLocaleDateString()}
+            {/* Current Plan */}
+            <div className={`rounded border p-6 ${isPro ? "border-amber/30 bg-amber/5" : "border-border bg-surface-1"}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <CreditCardIcon size={18} className="text-amber" />
+                <h2 className="text-lg font-semibold">Plan actuel</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`inline-block rounded px-3 py-1 font-mono text-sm font-medium ${
+                  isPro ? "bg-amber/10 text-amber" : isTrial ? "bg-amber/10 text-amber" : "bg-surface-3 text-text-muted"
+                }`}>
+                  {isPro ? "Pro" : isTrial ? "Essai" : "Gratuit"}
                 </span>
+                {isPro && <span className="text-sm text-text-muted">9 $/mois</span>}
+                {isTrial && billing?.trial_started_at && (
+                  <span className="text-sm text-text-muted">
+                    Démarré le {new Date(billing.trial_started_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              {billing?.plan_expires_at && (
+                <p className="mt-2 text-sm text-amber">
+                  Expire le : {new Date(billing.plan_expires_at).toLocaleDateString()}
+                </p>
               )}
-            </div>
-
-            {billing?.plan_expires_at && (
-              <p className="mt-2 text-sm text-yellow-600">
-                Expire le : {new Date(billing.plan_expires_at).toLocaleDateString()}
-              </p>
-            )}
-
-            <div className="mt-6">
-              {isPro || isTrial ? (
-                <button
-                  onClick={handleManage}
-                  disabled={actionLoading}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-900"
-                >
-                  {actionLoading ? "Chargement..." : "Gérer l'abonnement"}
-                </button>
-              ) : (
-                <button
-                  onClick={handleUpgrade}
-                  disabled={actionLoading}
-                  className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Usage */}
-          {stats && (
-            <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-              <h2 className="mb-4 text-lg font-semibold">Utilisation ce mois-ci</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-2xl font-bold">{stats.total_jobs}</div>
-                  <div className="text-sm text-gray-500">Offres évaluées</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{stats.applied}</div>
-                  <div className="text-sm text-gray-500">Candidatures</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">${stats.monthly_cost_usd.toFixed(2)}</div>
-                  <div className="text-sm text-gray-500">Coût IA</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">${stats.budget_remaining_usd.toFixed(2)}</div>
-                  <div className="text-sm text-gray-500">Budget restant</div>
-                </div>
+              <div className="mt-6">
+                {isPro || isTrial ? (
+                  <button onClick={handleManage} disabled={actionLoading} className="rounded border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:border-border-hover hover:text-text-primary disabled:opacity-50 transition-colors">
+                    {actionLoading ? "Chargement..." : "Gérer l'abonnement"}
+                  </button>
+                ) : (
+                  <button onClick={handleUpgrade} disabled={actionLoading} className="rounded bg-amber px-6 py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+                    {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
+                  </button>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Plan comparison */}
-          {!isPro && (
-            <div className="rounded-xl border border-gray-200 p-6 dark:border-gray-800">
-              <h2 className="mb-4 text-lg font-semibold">Pourquoi passer à Pro ?</h2>
-              <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Évaluation illimitée des offres (vs 10/cycle en Gratuit)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Notifications Telegram instantanées
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Candidature automatique (CV + lettre de motivation)
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Recherche entreprise IA
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">&#10003;</span> Support prioritaire
-                </li>
-              </ul>
-              <button
-                onClick={handleUpgrade}
-                disabled={actionLoading}
-                className="mt-6 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
-              </button>
-            </div>
-          )}
+            {/* Usage */}
+            {stats && (
+              <div className="rounded border border-border bg-surface-1 p-6">
+                <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-text-muted">Utilisation ce mois-ci</h2>
+                <div className="grid grid-cols-2 gap-6">
+                  {[
+                    { label: "Offres évaluées", value: stats.total_jobs },
+                    { label: "Candidatures", value: stats.applied },
+                    { label: "Coût IA", value: `$${stats.monthly_cost_usd.toFixed(2)}` },
+                    { label: "Budget restant", value: `$${stats.budget_remaining_usd.toFixed(2)}` },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="font-mono text-2xl font-bold text-text-primary">{item.value}</div>
+                      <div className="text-sm text-text-muted">{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Budget bar */}
+                {stats.monthly_cost_usd > 0 && (
+                  <div className="mt-4">
+                    <div className="h-2 overflow-hidden rounded-full bg-surface-3">
+                      <div
+                        className={`h-full rounded-full transition-all ${stats.budget_remaining_usd < 1 ? "bg-negative" : "bg-amber"}`}
+                        style={{ width: `${Math.min(100, (stats.monthly_cost_usd / (stats.monthly_cost_usd + stats.budget_remaining_usd)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Plan comparison */}
+            {!isPro && (
+              <div className="rounded border border-border bg-surface-1 p-6">
+                <h2 className="mb-4 text-lg font-semibold">Pourquoi passer à Pro ?</h2>
+                <ul className="space-y-2 text-sm text-text-secondary">
+                  {[
+                    "Évaluation illimitée des offres (vs 10/cycle en Gratuit)",
+                    "Notifications Telegram instantanées",
+                    "Candidature automatique (CV + lettre de motivation)",
+                    "Recherche entreprise IA",
+                    "Support prioritaire",
+                  ].map((f) => (
+                    <li key={f} className="flex items-center gap-2">
+                      <CheckIcon size={14} className="text-positive" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={handleUpgrade} disabled={actionLoading} className="mt-6 rounded bg-amber px-6 py-2.5 text-sm font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
+                  {actionLoading ? "Chargement..." : "Passer à Pro — 9 $/mois"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </AppShell>
     </AuthGuard>
   );
 }

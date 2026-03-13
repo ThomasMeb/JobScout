@@ -17,7 +17,6 @@ const STEP_META = [
   { label: "Notifications", time: "~30s", required: false },
 ];
 
-/** Extract likely keywords from pasted CV text. */
 function extractKeywordsFromCV(cvText: string): string[] {
   if (!cvText || cvText.length < 50) return [];
   const text = cvText.toLowerCase();
@@ -57,13 +56,9 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
   const [submitError, setSubmitError] = useState("");
 
   function parseList(str: string): string[] {
-    return str
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    return str.split(",").map((s) => s.trim()).filter(Boolean);
   }
 
-  /** Validate the current step. Returns true if valid. */
   function validateStep(s: number): boolean {
     const newErrors: Record<string, string> = {};
     if (s === 0) {
@@ -74,22 +69,15 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
       if (!form.search_queries.trim())
         newErrors.search_queries = "Au moins une requête de recherche est requise";
     }
-    // Steps 2-4 are optional or have defaults
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
 
   function handleNext() {
-    if (validateStep(step)) {
-      setStep(step + 1);
-    }
+    if (validateStep(step)) setStep(step + 1);
   }
 
-  /** CV keyword suggestions — recompute when cv_text changes. */
-  const suggestedKeywords = useMemo(
-    () => extractKeywordsFromCV(form.cv_text),
-    [form.cv_text]
-  );
+  const suggestedKeywords = useMemo(() => extractKeywordsFromCV(form.cv_text), [form.cv_text]);
 
   function applySuggestions() {
     const current = parseList(form.bonus_keywords);
@@ -118,253 +106,132 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         ...(mode === "onboarding" ? { onboarding_completed: true } : {}),
       });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde. Veuillez réessayer.");
+      setSubmitError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde.");
     } finally {
       setSaving(false);
     }
   }
 
   const inputClass = (field: string) =>
-    `w-full rounded-lg border px-3 py-2 dark:bg-gray-800 ${
+    `w-full rounded border px-3 py-2 bg-surface-1 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 transition-colors ${
       errors[field]
-        ? "border-red-400 focus:ring-red-400"
-        : "border-gray-300 dark:border-gray-600"
+        ? "border-negative focus:border-negative focus:ring-negative"
+        : "border-border focus:border-amber focus:ring-amber"
     }`;
+
+  const labelClass = "mb-1 block text-sm font-medium text-text-secondary";
+  const hintClass = "mt-1 text-xs text-text-muted";
 
   const steps = [
     // Step 0: Name + CV
     <div key="cv" className="space-y-4">
-      <h2 className="text-xl font-semibold">Votre profil</h2>
+      <h2 className="text-lg font-bold text-text-primary">Votre profil</h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">Nom</label>
-        <input
-          type="text"
-          value={form.name}
-          onChange={(e) => {
-            setForm({ ...form, name: e.target.value });
-            if (errors.name) setErrors({ ...errors, name: "" });
-          }}
-          className={inputClass("name")}
-          placeholder="Jean Dupont"
-        />
-        {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+        <label className={labelClass}>Nom</label>
+        <input type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: "" }); }} className={inputClass("name")} placeholder="Jean Dupont" />
+        {errors.name && <p className="mt-1 text-xs text-negative">{errors.name}</p>}
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">CV (collez le texte)</label>
-        <textarea
-          value={form.cv_text}
-          onChange={(e) => {
-            setForm({ ...form, cv_text: e.target.value });
-            if (errors.cv_text) setErrors({ ...errors, cv_text: "" });
-          }}
-          rows={10}
-          className={`${inputClass("cv_text")} font-mono text-sm`}
-          placeholder="Collez le texte de votre CV ici..."
-        />
-        {errors.cv_text && <p className="mt-1 text-xs text-red-500">{errors.cv_text}</p>}
-        {form.cv_text.length > 0 && (
-          <p className="mt-1 text-xs text-gray-400">{form.cv_text.length} caractères</p>
-        )}
+        <label className={labelClass}>CV (collez le texte)</label>
+        <textarea value={form.cv_text} onChange={(e) => { setForm({ ...form, cv_text: e.target.value }); if (errors.cv_text) setErrors({ ...errors, cv_text: "" }); }} rows={10} className={`${inputClass("cv_text")} font-mono text-sm`} placeholder="Collez le texte de votre CV ici..." />
+        {errors.cv_text && <p className="mt-1 text-xs text-negative">{errors.cv_text}</p>}
+        {form.cv_text.length > 0 && <p className={hintClass}>{form.cv_text.length} caractères</p>}
       </div>
     </div>,
 
     // Step 1: Search queries
     <div key="queries" className="space-y-4">
-      <h2 className="text-xl font-semibold">Recherche d&apos;emploi</h2>
+      <h2 className="text-lg font-bold text-text-primary">Recherche d&apos;emploi</h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Requêtes de recherche (séparées par des virgules)
-        </label>
-        <input
-          type="text"
-          value={form.search_queries}
-          onChange={(e) => {
-            setForm({ ...form, search_queries: e.target.value });
-            if (errors.search_queries) setErrors({ ...errors, search_queries: "" });
-          }}
-          className={inputClass("search_queries")}
-          placeholder="Ingénieur ML, Data Scientist, Ingénieur IA"
-        />
-        {errors.search_queries && (
-          <p className="mt-1 text-xs text-red-500">{errors.search_queries}</p>
-        )}
-        <p className="mt-1 text-xs text-gray-500">
-          Ces termes sont utilisés pour chercher sur les sites d&apos;emploi. Ajoutez tous les titres de poste pertinents.
-        </p>
+        <label className={labelClass}>Requêtes de recherche (séparées par des virgules)</label>
+        <input type="text" value={form.search_queries} onChange={(e) => { setForm({ ...form, search_queries: e.target.value }); if (errors.search_queries) setErrors({ ...errors, search_queries: "" }); }} className={inputClass("search_queries")} placeholder="Ingénieur ML, Data Scientist, Ingénieur IA" />
+        {errors.search_queries && <p className="mt-1 text-xs text-negative">{errors.search_queries}</p>}
+        <p className={hintClass}>Ces termes sont utilisés pour chercher sur les sites d&apos;emploi.</p>
       </div>
     </div>,
 
     // Step 2: Locations + remote
     <div key="locations" className="space-y-4">
-      <h2 className="text-xl font-semibold">Préférences de localisation</h2>
+      <h2 className="text-lg font-bold text-text-primary">Préférences de localisation</h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Localisations (séparées par des virgules)
-        </label>
-        <input
-          type="text"
-          value={form.search_locations}
-          onChange={(e) => setForm({ ...form, search_locations: e.target.value })}
-          className={inputClass("search_locations")}
-          placeholder="Paris, Lille, France"
-        />
+        <label className={labelClass}>Localisations (séparées par des virgules)</label>
+        <input type="text" value={form.search_locations} onChange={(e) => setForm({ ...form, search_locations: e.target.value })} className={inputClass("search_locations")} placeholder="Paris, Lille, France" />
       </div>
       <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="remote"
-          checked={form.remote_accepted}
-          onChange={(e) => setForm({ ...form, remote_accepted: e.target.checked })}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        <label htmlFor="remote" className="text-sm">Accepter les postes en télétravail</label>
+        <input type="checkbox" id="remote" checked={form.remote_accepted} onChange={(e) => setForm({ ...form, remote_accepted: e.target.checked })} className="h-4 w-4 rounded border-border accent-amber" />
+        <label htmlFor="remote" className="text-sm text-text-secondary">Accepter les postes en télétravail</label>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Salaire minimum (EUR/an)</label>
-        <input
-          type="number"
-          value={form.min_salary}
-          onChange={(e) => setForm({ ...form, min_salary: e.target.value })}
-          min={0}
-          max={500000}
-          className={inputClass("min_salary")}
-          placeholder="45000"
-        />
+        <label className={labelClass}>Salaire minimum (EUR/an)</label>
+        <input type="number" value={form.min_salary} onChange={(e) => setForm({ ...form, min_salary: e.target.value })} min={0} max={500000} className={inputClass("min_salary")} placeholder="45000" />
       </div>
     </div>,
 
-    // Step 3: Keywords (optional)
+    // Step 3: Keywords
     <div key="keywords" className="space-y-4">
-      <h2 className="text-xl font-semibold">
-        Mots-clés{" "}
-        <span className="text-sm font-normal text-gray-400">(optionnel)</span>
+      <h2 className="text-lg font-bold text-text-primary">
+        Mots-clés <span className="text-sm font-normal text-text-muted">(optionnel)</span>
       </h2>
       {suggestedKeywords.length > 0 && !form.bonus_keywords.trim() && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-          <p className="mb-2 text-sm font-medium text-blue-700 dark:text-blue-300">
-            Mots-clés détectés dans votre CV :
-          </p>
+        <div className="rounded border border-amber/20 bg-amber/5 p-3">
+          <p className="mb-2 text-sm font-medium text-amber">Mots-clés détectés dans votre CV :</p>
           <div className="mb-2 flex flex-wrap gap-1">
             {suggestedKeywords.slice(0, 12).map((kw) => (
-              <span
-                key={kw}
-                className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-800 dark:text-blue-200"
-              >
-                {kw}
-              </span>
+              <span key={kw} className="rounded bg-amber/10 px-2 py-0.5 text-xs text-amber-bright">{kw}</span>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={applySuggestions}
-            className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400"
-          >
+          <button type="button" onClick={applySuggestions} className="text-sm font-medium text-amber hover:text-amber-bright transition-colors">
             Utiliser comme mots-clés bonus
           </button>
         </div>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Mots-clés bonus</label>
-        <input
-          type="text"
-          value={form.bonus_keywords}
-          onChange={(e) => setForm({ ...form, bonus_keywords: e.target.value })}
-          className={inputClass("bonus_keywords")}
-          placeholder="python, machine learning, pytorch, docker"
-        />
-        <p className="mt-1 text-xs text-gray-500">Les offres contenant ces mots-clés obtiennent un bonus de score.</p>
+        <label className={labelClass}>Mots-clés bonus</label>
+        <input type="text" value={form.bonus_keywords} onChange={(e) => setForm({ ...form, bonus_keywords: e.target.value })} className={inputClass("bonus_keywords")} placeholder="python, machine learning, pytorch, docker" />
+        <p className={hintClass}>Les offres contenant ces mots-clés obtiennent un bonus de score.</p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Mots-clés pénalisants</label>
-        <input
-          type="text"
-          value={form.penalty_keywords}
-          onChange={(e) => setForm({ ...form, penalty_keywords: e.target.value })}
-          className={inputClass("penalty_keywords")}
-          placeholder="Java, .NET, 10+ years, PhD required"
-        />
-        <p className="mt-1 text-xs text-gray-500">Les offres contenant ces mots-clés reçoivent une pénalité de score.</p>
+        <label className={labelClass}>Mots-clés pénalisants</label>
+        <input type="text" value={form.penalty_keywords} onChange={(e) => setForm({ ...form, penalty_keywords: e.target.value })} className={inputClass("penalty_keywords")} placeholder="Java, .NET, 10+ years, PhD required" />
+        <p className={hintClass}>Les offres contenant ces mots-clés reçoivent une pénalité de score.</p>
       </div>
     </div>,
 
-    // Step 4: Notifications & Budget (optional)
+    // Step 4: Notifications & Budget
     <div key="notifications" className="space-y-4">
-      <h2 className="text-xl font-semibold">
-        Notifications et budget{" "}
-        <span className="text-sm font-normal text-gray-400">(optionnel)</span>
+      <h2 className="text-lg font-bold text-text-primary">
+        Notifications et budget <span className="text-sm font-normal text-text-muted">(optionnel)</span>
       </h2>
       <div>
-        <label className="mb-1 block text-sm font-medium">Email de notification</label>
-        <input
-          type="email"
-          value={form.notification_email}
-          onChange={(e) => setForm({ ...form, notification_email: e.target.value })}
-          className={inputClass("notification_email")}
-          placeholder="you@example.com"
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Recevez un résumé par email quand de nouvelles offres à haut score sont trouvées. Laissez vide pour désactiver.
-        </p>
+        <label className={labelClass}>Email de notification</label>
+        <input type="email" value={form.notification_email} onChange={(e) => setForm({ ...form, notification_email: e.target.value })} className={inputClass("notification_email")} placeholder="you@example.com" />
+        <p className={hintClass}>Résumé email pour les offres à haut score. Vide = désactivé.</p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Telegram Chat ID</label>
-        <input
-          type="text"
-          value={form.telegram_chat_id}
-          onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })}
-          className={inputClass("telegram_chat_id")}
-          placeholder="123456789"
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Recevez des notifications Telegram. Envoyez un message à @userinfobot pour trouver votre Chat ID. Laissez vide pour désactiver.
-        </p>
+        <label className={labelClass}>Telegram Chat ID</label>
+        <input type="text" value={form.telegram_chat_id} onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })} className={inputClass("telegram_chat_id")} placeholder="123456789" />
+        <p className={hintClass}>Envoyez /start à @userinfobot pour votre Chat ID.</p>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Score minimum pour les notifications</label>
-        <input
-          type="number"
-          value={form.min_score_notify}
-          onChange={(e) => setForm({ ...form, min_score_notify: Number(e.target.value) })}
-          min={0}
-          max={100}
-          className={inputClass("min_score_notify")}
-          placeholder="70"
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Seules les offres dépassant ce seuil seront incluses dans les résumés email.
-        </p>
+        <label className={labelClass}>Score minimum pour les notifications</label>
+        <input type="number" value={form.min_score_notify} onChange={(e) => setForm({ ...form, min_score_notify: Number(e.target.value) })} min={0} max={100} className={inputClass("min_score_notify")} placeholder="70" />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Budget IA mensuel (USD)</label>
-        <input
-          type="number"
-          value={form.monthly_budget_usd}
-          onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })}
-          min={0}
-          max={100}
-          step={0.5}
-          className={inputClass("monthly_budget_usd")}
-          placeholder="5.00"
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Limite mensuelle pour le scoring IA des offres. Le scoring se met en pause quand le budget est atteint. Par défaut : 5 $.
-        </p>
+        <label className={labelClass}>Budget IA mensuel (USD)</label>
+        <input type="number" value={form.monthly_budget_usd} onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })} min={0} max={100} step={0.5} className={inputClass("monthly_budget_usd")} placeholder="5.00" />
+        <p className={hintClass}>Scoring en pause quand le budget est atteint. Défaut : 5 $.</p>
       </div>
     </div>,
   ];
 
   if (mode === "settings") {
     return (
-      <div className="space-y-6">
-        {steps.map((s) => s)}
-        {submitError && (
-          <p className="text-sm text-red-500">{submitError}</p>
-        )}
-        <button
-          onClick={handleSubmit}
-          disabled={saving}
-          className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-        >
+      <div className="space-y-8">
+        {steps.map((s, i) => (
+          <div key={i} className="rounded border border-border bg-surface-1 p-6">{s}</div>
+        ))}
+        {submitError && <p className="text-sm text-negative">{submitError}</p>}
+        <button onClick={handleSubmit} disabled={saving} className="rounded bg-amber px-6 py-2.5 font-medium text-surface-0 hover:bg-amber-bright disabled:opacity-50 transition-colors">
           {saving ? "Sauvegarde..." : "Enregistrer"}
         </button>
       </div>
@@ -376,67 +243,52 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      {/* Header with time estimate */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <span>
-          Étape {step + 1} sur {steps.length} — {STEP_META[step]?.label}
-        </span>
-        <span>{STEP_META[step]?.time}</span>
+      {/* Progress indicator */}
+      <div className="flex items-center justify-between text-sm text-text-muted">
+        <span>Étape {step + 1} sur {steps.length} — {STEP_META[step]?.label}</span>
+        <span className="font-mono">{STEP_META[step]?.time}</span>
       </div>
 
-      {/* Progress */}
-      <div className="flex gap-2">
+      {/* Progress circles */}
+      <div className="flex items-center gap-2">
         {steps.map((_, i) => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              i <= step ? "bg-blue-600" : "bg-gray-200 dark:bg-gray-700"
-            }`}
-          />
+          <div key={i} className="flex items-center gap-2 flex-1">
+            <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+              i < step ? "bg-amber text-surface-0"
+                : i === step ? "bg-amber/20 text-amber border border-amber"
+                  : "bg-surface-3 text-text-muted"
+            }`}>
+              {i < step ? "✓" : i + 1}
+            </div>
+            {i < steps.length - 1 && <div className={`h-0.5 flex-1 ${i < step ? "bg-amber" : "bg-border"}`} />}
+          </div>
         ))}
       </div>
 
-      {steps[step]}
+      <div className="rounded border border-border bg-surface-1 p-6">
+        {steps[step]}
+      </div>
 
       <div className="flex justify-between">
         {step > 0 ? (
-          <button
-            onClick={() => setStep(step - 1)}
-            className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-          >
+          <button onClick={() => setStep(step - 1)} className="rounded border border-border px-4 py-2 text-sm text-text-secondary hover:border-border-hover hover:text-text-primary transition-colors">
             Retour
           </button>
-        ) : (
-          <div />
-        )}
+        ) : <div />}
 
         <div className="flex gap-2">
           {isOptionalStep && step < steps.length - 1 && (
-            <button
-              onClick={() => setStep(step + 1)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-            >
+            <button onClick={() => setStep(step + 1)} className="rounded border border-border px-4 py-2 text-sm text-text-muted hover:border-border-hover hover:text-text-secondary transition-colors">
               Passer
             </button>
           )}
-
-          {submitError && (
-            <p className="text-sm text-red-500">{submitError}</p>
-          )}
-
+          {submitError && <p className="text-sm text-negative">{submitError}</p>}
           {step < steps.length - 1 ? (
-            <button
-              onClick={handleNext}
-              className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-            >
+            <button onClick={handleNext} className="rounded bg-amber px-6 py-2 text-sm font-medium text-surface-0 hover:bg-amber-bright transition-colors">
               Suivant
             </button>
           ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-            >
+            <button onClick={handleSubmit} disabled={saving} className="rounded bg-positive px-6 py-2 text-sm font-medium text-surface-0 hover:brightness-110 disabled:opacity-50 transition">
               {saving ? "Sauvegarde..." : "Terminer la configuration"}
             </button>
           )}
