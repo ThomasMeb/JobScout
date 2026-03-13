@@ -6,27 +6,50 @@ import { createClient } from "@/lib/supabase-browser";
 import { isMockMode } from "@/lib/mock-data";
 import type { Session } from "@supabase/supabase-js";
 
+const MOCK_SESSION = { access_token: "mock-token", user: { id: "mock-user-001", email: "thomas@mebarki.dev" } } as unknown as Session;
+
+async function isApiReachable(): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  try {
+    const res = await fetch(`${url}/api/health`, { signal: AbortSignal.timeout(2000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Mock mode: skip auth entirely
     if (isMockMode()) {
-      setSession({ access_token: "mock-token", user: { id: "mock-user-001", email: "thomas@mebarki.dev" } } as unknown as Session);
+      setSession(MOCK_SESSION);
       setLoading(false);
       return;
     }
 
     const supabase = createClient();
 
-    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
-      if (!data.session) {
-        router.replace("/login");
-      } else {
+    supabase.auth.getSession().then(async ({ data }: { data: { session: Session | null } }) => {
+      if (data.session) {
         setSession(data.session);
+        setLoading(false);
+      } else {
+        // No session — check if backend is also down (= local dev without backend)
+        const reachable = await isApiReachable();
+        if (!reachable) {
+          // Backend down → use mock data
+          setSession(MOCK_SESSION);
+        } else {
+          // Backend is up but no session → real login needed
+          router.replace("/login");
+        }
+        setLoading(false);
       }
+    }).catch(() => {
+      setSession(MOCK_SESSION);
       setLoading(false);
     });
 

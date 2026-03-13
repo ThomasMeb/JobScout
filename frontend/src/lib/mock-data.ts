@@ -355,6 +355,7 @@ export const MOCK_ADMIN_SCRAPERS = MOCK_SCRAPE_RUNS.filter((r) => r.status === "
 // ─── Mock API helper ──────────────────────────────────────
 
 export function isMockMode(): boolean {
+  if (process.env.NEXT_PUBLIC_MOCK_MODE === "true") return true;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return !url || url === "https://placeholder.supabase.co";
 }

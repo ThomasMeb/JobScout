@@ -14,7 +14,16 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+// Track if backend is unreachable to skip repeated failing calls
+let _backendDown = false;
+
+export function isBackendDown() {
+  return _backendDown;
+}
+
 async function fetchAPI(path: string, options: RequestInit = {}) {
+  if (_backendDown) throw new Error("Backend unavailable");
+
   const { createClient } = await import("./supabase-browser");
   const supabase = createClient();
   const {
@@ -30,24 +39,37 @@ async function fetchAPI(path: string, options: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${session.access_token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || "Erreur API");
+  try {
+    const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(error.detail || "Erreur API");
+    }
+    return res.json();
+  } catch (e) {
+    // Network error = backend is down → enable fallback
+    if (e instanceof TypeError || (e instanceof Error && e.message.includes("fetch"))) {
+      _backendDown = true;
+    }
+    throw e;
   }
+}
 
-  return res.json();
+// Helper: try real API, fall back to mock on failure
+function withFallback<T>(apiFn: () => Promise<T>, mockValue: T): Promise<T> {
+  if (isMockMode() || _backendDown) return Promise.resolve(mockValue);
+  return apiFn().catch(() => mockValue);
 }
 
 // Profile
 export const getProfile = () =>
-  isMockMode() ? Promise.resolve(MOCK_PROFILE) : fetchAPI("/api/profile/");
+  withFallback(() => fetchAPI("/api/profile/"), MOCK_PROFILE);
 
 export const updateProfile = (data: Record<string, unknown>) =>
-  isMockMode()
-    ? Promise.resolve({ ...MOCK_PROFILE, ...data })
-    : fetchAPI("/api/profile/", { method: "PATCH", body: JSON.stringify(data) });
+  withFallback(
+    () => fetchAPI("/api/profile/", { method: "PATCH", body: JSON.stringify(data) }),
+    { ...MOCK_PROFILE, ...data } as typeof MOCK_PROFILE,
+  );
 
 // Jobs
 export interface JobFilters {
@@ -60,7 +82,8 @@ export interface JobFilters {
 }
 
 export const getJobs = (filters: JobFilters = {}) => {
-  if (isMockMode()) return Promise.resolve(getMockJobs(filters));
+  const mockResult = getMockJobs(filters);
+  if (isMockMode() || _backendDown) return Promise.resolve(mockResult);
 
   const params = new URLSearchParams();
   if (filters.page) params.set("page", String(filters.page));
@@ -69,44 +92,49 @@ export const getJobs = (filters: JobFilters = {}) => {
   if (filters.status) params.set("status", filters.status);
   if (filters.source) params.set("source", filters.source);
   if (filters.search) params.set("search", filters.search);
-  return fetchAPI(`/api/jobs/?${params}`);
+  return fetchAPI(`/api/jobs/?${params}`).catch(() => mockResult);
 };
 
 export const bulkFeedback = (jobIds: number[], status: string) => {
-  if (isMockMode()) {
+  const mockFn = () => {
     jobIds.forEach((id) => {
       const job = MOCK_JOBS.find((j) => j.id === id);
       if (job) job.status = status;
     });
-    return Promise.resolve({ updated: jobIds.length });
-  }
+    return { updated: jobIds.length };
+  };
+  if (isMockMode() || _backendDown) return Promise.resolve(mockFn());
   return fetchAPI("/api/jobs/bulk/feedback", {
     method: "PATCH",
     body: JSON.stringify({ job_ids: jobIds, status }),
-  });
+  }).catch(() => mockFn());
 };
 
 export const getJob = (id: number) => {
-  if (isMockMode()) {
-    const job = MOCK_JOBS.find((j) => j.id === id);
+  const job = MOCK_JOBS.find((j) => j.id === id);
+  if (isMockMode() || _backendDown) {
     return job ? Promise.resolve(job) : Promise.reject(new Error("Job not found"));
   }
-  return fetchAPI(`/api/jobs/${id}`);
+  return fetchAPI(`/api/jobs/${id}`).catch(() => {
+    if (job) return job;
+    throw new Error("Job not found");
+  });
 };
 
 export const updateJobFeedback = (id: number, status: string, notes?: string) => {
-  if (isMockMode()) {
+  const mockFn = () => {
     const job = MOCK_JOBS.find((j) => j.id === id);
     if (job) {
       job.status = status;
       if (notes !== undefined) job.user_notes = notes;
     }
-    return Promise.resolve(job);
-  }
+    return job;
+  };
+  if (isMockMode() || _backendDown) return Promise.resolve(mockFn());
   return fetchAPI(`/api/jobs/${id}/feedback`, {
     method: "PATCH",
     body: JSON.stringify({ status, user_notes: notes }),
-  });
+  }).catch(() => mockFn());
 };
 
 // Export
@@ -157,42 +185,36 @@ export const exportJobsCSV = async (filters: JobFilters = {}) => {
 
 // Account
 export const deleteAccount = () =>
-  isMockMode() ? Promise.resolve({ ok: true }) : fetchAPI("/api/profile/", { method: "DELETE" });
+  withFallback(() => fetchAPI("/api/profile/", { method: "DELETE" }), { ok: true });
 
 // Billing
 export const getBillingStatus = () =>
-  isMockMode() ? Promise.resolve(MOCK_BILLING) : fetchAPI("/api/billing/status");
+  withFallback(() => fetchAPI("/api/billing/status"), MOCK_BILLING);
 
 export const createCheckout = () =>
-  isMockMode()
-    ? Promise.resolve({ url: "/dashboard/billing" })
-    : fetchAPI("/api/billing/checkout", { method: "POST" });
+  withFallback(() => fetchAPI("/api/billing/checkout", { method: "POST" }), { url: "/dashboard/billing" });
 
 export const createPortal = () =>
-  isMockMode()
-    ? Promise.resolve({ url: "/dashboard/billing" })
-    : fetchAPI("/api/billing/portal", { method: "POST" });
+  withFallback(() => fetchAPI("/api/billing/portal", { method: "POST" }), { url: "/dashboard/billing" });
 
 // Admin
 export const getAdminUsers = () =>
-  isMockMode() ? Promise.resolve(MOCK_ADMIN_USERS) : fetchAPI("/api/admin/users");
+  withFallback(() => fetchAPI("/api/admin/users"), MOCK_ADMIN_USERS);
 
 export const getAdminScrapers = () =>
-  isMockMode() ? Promise.resolve(MOCK_ADMIN_SCRAPERS) : fetchAPI("/api/admin/scrapers");
+  withFallback(() => fetchAPI("/api/admin/scrapers"), MOCK_ADMIN_SCRAPERS);
 
 export const getAdminMetrics = () =>
-  isMockMode() ? Promise.resolve(MOCK_ADMIN_METRICS) : fetchAPI("/api/admin/metrics");
+  withFallback(() => fetchAPI("/api/admin/metrics"), MOCK_ADMIN_METRICS);
 
 // Stats
 export const getStats = () =>
-  isMockMode() ? Promise.resolve(MOCK_STATS) : fetchAPI("/api/stats/");
+  withFallback(() => fetchAPI("/api/stats/"), MOCK_STATS);
 
 // Charts
 export const getChartData = () =>
-  isMockMode() ? Promise.resolve(MOCK_CHART_DATA) : fetchAPI("/api/stats/charts");
+  withFallback(() => fetchAPI("/api/stats/charts"), MOCK_CHART_DATA);
 
 // Scrape runs
 export const getScrapeRuns = (limit = 10) =>
-  isMockMode()
-    ? Promise.resolve(MOCK_SCRAPE_RUNS.slice(0, limit))
-    : fetchAPI(`/api/scrape-runs/?limit=${limit}`);
+  withFallback(() => fetchAPI(`/api/scrape-runs/?limit=${limit}`), MOCK_SCRAPE_RUNS.slice(0, limit));
