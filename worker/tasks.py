@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import sentry_sdk
 
@@ -25,6 +25,7 @@ from job_agent.scrapers.wttj import WTTJScraper
 
 from worker.config import SCRAPER_CONFIGS, get_settings
 from worker.db import get_supabase, get_user_monthly_cost
+from worker.embeddings import embed_new_jobs, get_or_update_user_embedding, get_prefiltered_jobs
 from worker.scoring import (
     build_system_prompt,
     call_llm,
@@ -66,6 +67,7 @@ async def scrape_global():
     4. Log scrape_runs for monitoring
     """
     sb = get_supabase()
+    settings = get_settings()
 
     # 1. Get all active users' search parameters
     profiles = (
@@ -92,10 +94,20 @@ async def scrape_global():
         logger.info("No search queries configured by any user, skipping scrape")
         return
 
+    # Add broad generic queries to widen the job pool (only useful for embedding discovery)
+    if settings.embeddings_enabled:
+        broad_queries = [
+            "développeur", "developer", "data", "ingénieur", "engineer",
+            "devops", "product manager", "designer", "fullstack", "backend",
+            "frontend", "machine learning", "data scientist", "cloud",
+        ]
+        for bq in broad_queries:
+            all_queries.add(bq)
+
     queries = list(all_queries)
     locations = list(all_locations) or ["France"]
 
-    logger.info(f"Scraping with {len(queries)} queries, {len(locations)} locations")
+    logger.info(f"Scraping with {len(queries)} queries ({len(broad_queries)} broad), {len(locations)} locations")
 
     # 2. Run each enabled scraper
     total_found = 0
@@ -163,6 +175,20 @@ async def scrape_global():
 
     logger.info(f"Scrape complete: {total_found} found, {total_new} new")
 
+    # Generate embeddings for new jobs (Tier 1 → Tier 2 bridge)
+    if settings.embeddings_enabled:
+        try:
+            embedded = await embed_new_jobs(sb)
+            logger.info(f"Embedding complete: {embedded} jobs embedded")
+        except Exception as e:
+            logger.error(f"Embedding generation failed: {e}", exc_info=True)
+
+    # Cleanup old jobs (retention policy)
+    try:
+        await cleanup_old_jobs(sb)
+    except Exception as e:
+        logger.error(f"Job cleanup failed: {e}", exc_info=True)
+
 
 def _upsert_raw_job(sb, rj: RawJob) -> bool:
     """Insert a raw job if not already present. Returns True if new."""
@@ -227,6 +253,43 @@ def _log_scrape_finish(
     sb.table("scrape_runs").update(row).eq("id", run_id).execute()
 
 
+async def cleanup_old_jobs(sb, retention_days: int = 45):
+    """Delete raw_jobs older than retention_days to keep the database lean.
+
+    CASCADE on raw_jobs will automatically delete related user_jobs and job_embeddings.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
+
+    total_deleted = 0
+    batch_size = 500
+
+    while True:
+        old_jobs = (
+            sb.table("raw_jobs")
+            .select("id")
+            .lt("scraped_at", cutoff)
+            .limit(batch_size)
+            .execute()
+        )
+
+        if not old_jobs.data:
+            break
+
+        ids = [j["id"] for j in old_jobs.data]
+        for job_id in ids:
+            try:
+                sb.table("raw_jobs").delete().eq("id", job_id).execute()
+                total_deleted += 1
+            except Exception:
+                pass
+
+        if len(ids) < batch_size:
+            break
+
+    if total_deleted > 0:
+        logger.info(f"Cleanup: deleted {total_deleted} raw_jobs older than {retention_days} days")
+
+
 async def score_per_user():
     """Score unscored jobs for each active user.
 
@@ -240,11 +303,14 @@ async def score_per_user():
     settings = get_settings()
 
     # Get all active users
+    select_fields = ("id, cv_text, profile_summary, search_queries, search_locations, "
+                     "bonus_keywords, penalty_keywords, remote_accepted, min_salary, "
+                     "monthly_budget_usd, plan")
+    if settings.embeddings_enabled:
+        select_fields += ", embedding_threshold"
     profiles = (
         sb.table("profiles")
-        .select("id, cv_text, profile_summary, search_queries, search_locations, "
-                "bonus_keywords, penalty_keywords, remote_accepted, min_salary, "
-                "monthly_budget_usd, plan")
+        .select(select_fields)
         .eq("onboarding_completed", True)
         .execute()
     )
@@ -268,23 +334,44 @@ async def score_per_user():
             logger.info(f"User {user_id[:8]}... budget exhausted: ${monthly_cost:.4f} >= ${budget:.2f}")
             continue
 
-        # Get unscored jobs via RPC
         queries = user.get("search_queries") or []
         locations = user.get("search_locations") or []
 
-        try:
-            unscored = sb.rpc("get_unscored_jobs_for_user", {
-                "p_user_id": user_id,
-                "p_queries": queries,
-                "p_locations": locations,
-                "p_days_back": settings.job_lookback_days,
-                "p_limit": settings.max_jobs_per_user_per_cycle,
-            }).execute()
-        except Exception as e:
-            logger.error(f"RPC get_unscored_jobs failed for {user_id[:8]}...: {e}")
-            continue
+        jobs = []
+        used_prefilter = False
 
-        jobs = unscored.data or []
+        # Tier 2: Pre-filter via embeddings (only if enabled)
+        if settings.embeddings_enabled:
+            try:
+                threshold = float(user.get("embedding_threshold") or settings.default_embedding_threshold)
+                user_emb = get_or_update_user_embedding(sb, user)
+                if user_emb:
+                    jobs = await get_prefiltered_jobs(
+                        sb, user_id, user_emb,
+                        threshold=threshold,
+                        limit=settings.max_jobs_per_user_per_cycle,
+                        min_results=settings.min_prefiltered_jobs,
+                        days_back=settings.job_lookback_days,
+                    )
+                    if jobs:
+                        used_prefilter = True
+            except Exception as e:
+                logger.warning(f"Embedding prefilter failed for {user_id[:8]}..., falling back to RPC: {e}")
+
+        # Fallback to legacy RPC if prefilter returned nothing
+        if not jobs:
+            try:
+                unscored = sb.rpc("get_unscored_jobs_for_user", {
+                    "p_user_id": user_id,
+                    "p_queries": queries,
+                    "p_locations": locations,
+                    "p_days_back": settings.job_lookback_days,
+                    "p_limit": settings.max_jobs_per_user_per_cycle,
+                }).execute()
+                jobs = unscored.data or []
+            except Exception as e:
+                logger.error(f"RPC get_unscored_jobs failed for {user_id[:8]}...: {e}")
+                continue
         if not jobs:
             logger.info(f"User {user_id[:8]}...: no unscored jobs")
             continue
@@ -295,7 +382,8 @@ async def score_per_user():
             free_limit = 10
             jobs = jobs[:free_limit]
 
-        logger.info(f"User {user_id[:8]}... [{user_plan}]: scoring {len(jobs)} jobs")
+        source = "prefilter" if used_prefilter else "rpc"
+        logger.info(f"User {user_id[:8]}... [{user_plan}]: scoring {len(jobs)} jobs (source: {source})")
 
         # Build system prompt with user's full profile and preferences
         system_prompt = build_system_prompt(user)

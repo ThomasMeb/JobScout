@@ -66,19 +66,34 @@ async def _update_heartbeat(status: str, cycle_count: int = 0, error_message: st
         }
         if status == "running":
             row["last_cycle_at"] = datetime.now(timezone.utc).isoformat()
-        if error_message:
-            row["error_message"] = error_message[:500]
+        row["error_message"] = error_message[:500] if error_message else None
         sb.table("worker_heartbeats").upsert(row).execute()
     except Exception as e:
         logger.warning(f"Failed to update heartbeat: {e}")
 
 
-async def run_cycle(cycle_count: int) -> int:
-    """One full worker cycle: scrape → score → notify → company research → notion sync."""
-    logger.info("Worker cycle starting...")
+async def run_scrape_cycle():
+    """Tier 1: Scrape global + generate embeddings."""
+    logger.info("Scrape cycle starting...")
     try:
-        await scrape_global()
-        await score_per_user()
+        await scrape_global()  # includes embed_new_jobs()
+    except Exception as e:
+        logger.error(f"Scrape cycle failed: {e}", exc_info=True)
+        sentry_sdk.capture_exception(e)
+
+
+async def run_score_cycle(cycle_count: int) -> int:
+    """Tier 2+3: Score per user + downstream tasks (notifications, sync, emails)."""
+    logger.info("Score cycle starting...")
+    try:
+        try:
+            await score_per_user()
+        except Exception as e:
+            logger.error(f"Scoring failed: {e}", exc_info=True)
+            sentry_sdk.capture_exception(e)
+
+        # Always attempt notifications, even if scoring failed
+        # (there may be previously scored but unnotified jobs)
         await send_notifications()
 
         # Phase 2: Company research
@@ -112,13 +127,57 @@ async def run_cycle(cycle_count: int) -> int:
 
         cycle_count += 1
         await _update_heartbeat("running", cycle_count)
-        logger.info(f"Worker cycle #{cycle_count} complete")
+        logger.info(f"Score cycle #{cycle_count} complete")
         return cycle_count
     except Exception as e:
-        logger.error(f"Worker cycle failed: {e}", exc_info=True)
+        logger.error(f"Score cycle failed: {e}", exc_info=True)
         sentry_sdk.capture_exception(e)
         await _update_heartbeat("error", cycle_count, str(e))
         return cycle_count
+
+
+async def run_full_cycle(cycle_count: int) -> int:
+    """Full cycle: scrape + score + downstream (used for first cycle)."""
+    await run_scrape_cycle()
+    return await run_score_cycle(cycle_count)
+
+
+async def _validate_schema(settings):
+    """Check expected DB schema at startup. Logs warnings but does NOT block."""
+    from worker.db import get_supabase
+    sb = get_supabase()
+    warnings = []
+
+    # Core tables
+    for table in ["profiles", "raw_jobs", "user_jobs", "llm_usage", "scrape_runs"]:
+        try:
+            sb.table(table).select("*", count="exact").limit(0).execute()
+        except Exception:
+            warnings.append(f"CRITICAL: table '{table}' missing")
+
+    # Embedding infrastructure (only if enabled)
+    if settings.embeddings_enabled:
+        try:
+            sb.table("profiles").select("embedding_threshold").limit(1).execute()
+        except Exception:
+            warnings.append("profiles.embedding_threshold column missing (migration 013)")
+        for tbl in ["job_embeddings", "user_embeddings"]:
+            try:
+                sb.table(tbl).select("*", count="exact").limit(0).execute()
+            except Exception:
+                warnings.append(f"table '{tbl}' missing (migration 013)")
+
+    if warnings:
+        for w in warnings:
+            logger.warning(f"Schema check: {w}")
+        critical = [w for w in warnings if "CRITICAL" in w]
+        if critical:
+            await _send_crash_alert(
+                "⚠️ <b>JobScout Schema Warning</b>\n\n"
+                + "\n".join(f"• {w}" for w in warnings)
+            )
+    else:
+        logger.info("Schema validation OK")
 
 
 async def main():
@@ -133,8 +192,10 @@ async def main():
         )
         logger.info("Sentry initialized for worker")
 
-    interval = settings.cycle_interval_hours
-    logger.info(f"Worker starting — cycle every {interval}h")
+    logger.info(
+        f"Worker starting — scrape every {settings.scrape_interval_hours}h, "
+        f"score every {settings.scoring_interval_hours}h"
+    )
 
     # Startup health check: verify Supabase connection
     try:
@@ -145,6 +206,9 @@ async def main():
     except Exception as e:
         logger.critical(f"Supabase connection failed at startup: {e}")
         raise SystemExit(1)
+
+    # Schema validation: detect missing tables/columns early
+    await _validate_schema(settings)
 
     await _update_heartbeat("starting")
 
@@ -157,13 +221,23 @@ async def main():
         except Exception as e:
             logger.error(f"Failed to start Telegram bot: {e}")
 
-    # Run cycles
+    # Run first full cycle, then decouple scrape/score loops
     cycle_count = 0
     try:
-        cycle_count = await run_cycle(cycle_count)
-        while True:
-            await asyncio.sleep(interval * 3600)
-            cycle_count = await run_cycle(cycle_count)
+        cycle_count = await run_full_cycle(cycle_count)
+
+        async def scrape_loop():
+            while True:
+                await asyncio.sleep(settings.scrape_interval_hours * 3600)
+                await run_scrape_cycle()
+
+        async def score_loop():
+            nonlocal cycle_count
+            while True:
+                await asyncio.sleep(settings.scoring_interval_hours * 3600)
+                cycle_count = await run_score_cycle(cycle_count)
+
+        await asyncio.gather(scrape_loop(), score_loop())
     except Exception as e:
         error_tb = traceback.format_exc()
         logger.critical(f"Worker crashed: {e}\n{error_tb}")

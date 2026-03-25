@@ -48,6 +48,15 @@ class WorkerSettings(BaseSettings):
     auto_apply_enabled: bool = True
     brevo_api_key: str = ""
 
+    # Embeddings (3-tier pipeline) — enable after migration 013 is fully applied
+    embeddings_enabled: bool = False
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_batch_size: int = 32
+    default_embedding_threshold: float = 0.35
+    min_prefiltered_jobs: int = 20
+    scrape_interval_hours: int = 1
+    scoring_interval_hours: int = 4
+
     # Observability
     sentry_dsn: str = ""
 
