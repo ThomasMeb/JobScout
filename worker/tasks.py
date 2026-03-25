@@ -106,7 +106,8 @@ async def scrape_global():
     queries = list(all_queries)
     locations = list(all_locations) or ["France"]
 
-    logger.info(f"Scraping with {len(queries)} queries ({len(broad_queries)} broad), {len(locations)} locations")
+    n_broad = len(broad_queries) if settings.embeddings_enabled else 0
+    logger.info(f"Scraping with {len(queries)} queries ({n_broad} broad), {len(locations)} locations")
 
     # 2. Run each enabled scraper
     total_found = 0
