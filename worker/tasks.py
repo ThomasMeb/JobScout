@@ -25,7 +25,6 @@ from job_agent.scrapers.wttj import WTTJScraper
 
 from worker.config import SCRAPER_CONFIGS, get_settings
 from worker.db import get_supabase, get_user_monthly_cost
-from worker.embeddings import embed_new_jobs, get_or_update_user_embedding, get_prefiltered_jobs
 from worker.scoring import (
     build_system_prompt,
     call_llm,
@@ -178,6 +177,7 @@ async def scrape_global():
     # Generate embeddings for new jobs (Tier 1 → Tier 2 bridge)
     if settings.embeddings_enabled:
         try:
+            from worker.embeddings import embed_new_jobs
             embedded = await embed_new_jobs(sb)
             logger.info(f"Embedding complete: {embedded} jobs embedded")
         except Exception as e:
@@ -343,6 +343,7 @@ async def score_per_user():
         # Tier 2: Pre-filter via embeddings (only if enabled)
         if settings.embeddings_enabled:
             try:
+                from worker.embeddings import get_or_update_user_embedding, get_prefiltered_jobs
                 threshold = float(user.get("embedding_threshold") or settings.default_embedding_threshold)
                 user_emb = get_or_update_user_embedding(sb, user)
                 if user_emb:
