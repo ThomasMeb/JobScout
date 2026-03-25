@@ -67,7 +67,7 @@ export default function BillingPage() {
         <div className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl space-y-6">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Abonnement</h1>
+              <h1 className="font-display text-3xl italic text-text-primary" style={{ letterSpacing: "-0.02em" }}>Abonnement</h1>
               <p className="mt-1 text-sm text-text-secondary">Gérez votre plan et votre utilisation.</p>
             </div>
 

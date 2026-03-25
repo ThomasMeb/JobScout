@@ -62,7 +62,7 @@ export default function SettingsPage() {
         <div className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl space-y-6">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Paramètres</h1>
+              <h1 className="font-display text-3xl italic text-text-primary" style={{ letterSpacing: "-0.02em" }}>Paramètres</h1>
               <p className="mt-1 text-sm text-text-secondary">Gérez votre profil et vos préférences.</p>
             </div>
 

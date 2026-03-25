@@ -102,12 +102,13 @@ export default function DashboardPage() {
         <div className="space-y-4 px-4 py-6 sm:space-y-6 sm:px-6 lg:px-8">
           {/* Welcome header */}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>
+            <h1 className="font-display text-3xl italic text-text-primary" style={{ letterSpacing: "-0.02em" }}>
               Tableau de bord
             </h1>
             <p className="mt-1 text-sm text-text-secondary">
               Vos offres d&apos;emploi, analysées par IA.
             </p>
+            <div className="editorial-divider mt-3 w-12" />
           </div>
 
           {stats && <StatsBar stats={stats} />}

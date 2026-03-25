@@ -104,7 +104,7 @@ export default function AdminPage() {
     <AuthGuard>
       <AppShell>
         <div className="space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>Admin</h1>
+          <h1 className="font-display text-3xl italic text-text-primary" style={{ letterSpacing: "-0.02em" }}>Admin</h1>
 
           {/* Metrics */}
           {metrics && (

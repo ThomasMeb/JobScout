@@ -9,25 +9,28 @@ import type { Job } from "@/lib/types";
 import { ArrowLeftIcon, ExternalLinkIcon, CheckIcon, CrossIcon, PenIcon } from "@/components/Icons";
 
 function ScoreRing({ score }: { score: number }) {
-  const r = 40;
+  const r = 52;
   const circ = 2 * Math.PI * r;
   const offset = circ - (score / 100) * circ;
-  const color = score >= 70 ? "#34D399" : score >= 40 ? "#F59E0B" : "#F87171";
+  const color = score >= 70 ? "var(--positive)" : score >= 40 ? "var(--amber)" : "var(--negative)";
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="#27272A" strokeWidth="6" />
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r={r} fill="none" stroke="var(--border)" strokeWidth="6" />
         <circle
-          cx="50" cy="50" r={r} fill="none"
+          cx="65" cy="65" r={r} fill="none"
           stroke={color} strokeWidth="6"
           strokeDasharray={circ}
           strokeDashoffset={offset}
           className="score-ring"
-          transform="rotate(-90 50 50)"
+          transform="rotate(-90 65 65)"
         />
       </svg>
-      <span className="absolute font-mono text-2xl font-bold text-text-primary">{Math.round(score)}</span>
+      <div className="absolute flex flex-col items-center">
+        <span className="font-mono text-4xl font-bold text-text-primary" style={{ letterSpacing: "-0.04em" }}>{Math.round(score)}</span>
+        <span className="text-[10px] uppercase tracking-widest text-text-muted">score</span>
+      </div>
     </div>
   );
 }
@@ -99,25 +102,28 @@ export default function JobDetailPage() {
             </button>
 
             {/* Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight" style={{ letterSpacing: "-0.03em" }}>{job.title}</h1>
-                <p className="mt-1 text-lg text-text-secondary">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1">
+                <h1 className="font-display text-3xl italic text-text-primary sm:text-4xl" style={{ letterSpacing: "-0.02em" }}>
+                  {job.title}
+                </h1>
+                <p className="mt-2 text-lg text-text-secondary">
                   {job.company} &middot; {job.location || "Lieu non renseigné"}
                 </p>
+                <div className="editorial-divider mt-3 w-12" />
               </div>
               {job.match_score !== null && <ScoreRing score={job.match_score} />}
             </div>
 
             {/* Tags */}
             <div className="flex flex-wrap gap-2">
-              <span className="rounded border border-border bg-surface-2 px-3 py-1 font-mono text-xs">{job.source}</span>
-              <span className="rounded border border-border bg-surface-2 px-3 py-1 text-xs">
+              <span className="tag-pill font-mono">{job.source}</span>
+              <span className="tag-pill">
                 {job.remote_type === "full" ? "Télétravail" : job.remote_type === "partial" ? "Hybride" : "Sur site"}
               </span>
               {job.salary_min && (
-                <span className="rounded border border-border bg-surface-2 px-3 py-1 text-xs">
-                  {job.salary_min}{job.salary_max ? `-${job.salary_max}` : "+"} {job.salary_currency}
+                <span className="tag-pill font-mono">
+                  {job.salary_min}{job.salary_max ? `–${job.salary_max}` : "+"} {job.salary_currency}
                 </span>
               )}
               <span className={`rounded px-3 py-1 text-xs font-medium ${st.bg}`}>{st.label}</span>
@@ -126,19 +132,19 @@ export default function JobDetailPage() {
             {/* Scoring breakdown */}
             {job.match_reasoning && (
               <div className="rounded border border-border bg-surface-1 p-5">
-                <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">Détail du scoring IA</h2>
+                <h2 className="label mb-3">Détail du scoring IA</h2>
                 <pre className="whitespace-pre-wrap font-mono text-sm text-text-secondary leading-relaxed">{job.match_reasoning}</pre>
                 {job.match_keywords.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {job.match_keywords.map((kw, i) => (
-                      <span key={i} className="rounded bg-positive/10 px-2 py-0.5 text-xs text-positive">{kw}</span>
+                      <span key={i} className="rounded bg-positive/10 px-2.5 py-0.5 text-xs font-medium text-positive">{kw}</span>
                     ))}
                   </div>
                 )}
                 {job.missing_keywords.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {job.missing_keywords.map((kw, i) => (
-                      <span key={i} className="rounded bg-negative/10 px-2 py-0.5 text-xs text-negative">{kw}</span>
+                      <span key={i} className="rounded bg-negative/10 px-2.5 py-0.5 text-xs font-medium text-negative">{kw}</span>
                     ))}
                   </div>
                 )}
@@ -147,7 +153,7 @@ export default function JobDetailPage() {
 
             {/* Notes + Actions */}
             <div className="rounded border border-border bg-surface-1 p-5">
-              <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">Notes</h2>
+              <h2 className="label mb-3">Notes</h2>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -181,10 +187,10 @@ export default function JobDetailPage() {
             {/* Tags */}
             {job.tags.length > 0 && (
               <div className="rounded border border-border bg-surface-1 p-5">
-                <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-text-muted">Tags</h2>
+                <h2 className="label mb-3">Tags</h2>
                 <div className="flex flex-wrap gap-1.5">
                   {job.tags.map((tag, i) => (
-                    <span key={i} className="rounded border border-border bg-surface-2 px-2.5 py-0.5 text-xs text-text-secondary">{tag}</span>
+                    <span key={i} className="tag-pill">{tag}</span>
                   ))}
                 </div>
               </div>
