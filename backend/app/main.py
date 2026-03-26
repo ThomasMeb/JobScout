@@ -2,8 +2,10 @@ import json
 import logging
 
 import sentry_sdk
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -53,6 +55,20 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=400, content={"detail": "Données invalides", "errors": str(exc.errors())})
+
+
+@app.exception_handler(Exception)
+async def generic_error_handler(_request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    sentry_sdk.capture_exception(exc)
+    return JSONResponse(status_code=500, content={"detail": "Erreur interne du serveur"})
 
 
 settings = get_settings()

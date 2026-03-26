@@ -59,9 +59,10 @@ async def list_jobs(
     if source:
         query = query.eq("raw_jobs.source", source)
     if search:
-        # Full-text search on title and company via PostgREST ilike
+        # Sanitize search for PostgREST filter syntax (escape special chars)
+        safe = search.replace("\\", "\\\\").replace("%", "\\%").replace(",", "").replace("(", "").replace(")", "").replace(".", " ")
         query = query.or_(
-            f"raw_jobs.title.ilike.%{search}%,raw_jobs.company.ilike.%{search}%"
+            f"raw_jobs.title.ilike.%{safe}%,raw_jobs.company.ilike.%{safe}%"
         )
 
     result = query.range(offset, offset + per_page - 1).execute()
