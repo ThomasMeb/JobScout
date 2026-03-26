@@ -32,13 +32,15 @@ if _settings.environment != "development":
     handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 
-# Init Sentry (no-op if DSN is empty)
+# Init Sentry
 if _settings.sentry_dsn and isinstance(_settings.sentry_dsn, str) and _settings.sentry_dsn.startswith("http"):
     sentry_sdk.init(
         dsn=_settings.sentry_dsn,
         traces_sample_rate=0.2,
         environment=_settings.environment,
     )
+elif _settings.environment != "development":
+    logging.getLogger(__name__).warning("SENTRY_DSN not configured — errors will NOT be tracked in production")
 
 
 app = FastAPI(
