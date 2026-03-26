@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Toaster } from "sonner";
 import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
@@ -83,7 +84,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: { background: "var(--surface-1)", color: "var(--text-primary)", border: "1px solid var(--border)" },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

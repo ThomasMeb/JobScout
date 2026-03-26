@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import AppShell from "@/components/AppShell";
+import { toast } from "sonner";
 import { createCheckout, createPortal, getBillingStatus, getProfile, getStats } from "@/lib/api";
 import { CheckIcon, CreditCardIcon } from "@/components/Icons";
 import type { UserStats } from "@/lib/types";
@@ -33,7 +34,7 @@ export default function BillingPage() {
     try {
       const { checkout_url } = await createCheckout();
       if (checkout_url) window.location.href = checkout_url;
-    } catch (e) { console.error("Checkout failed:", e); }
+    } catch { toast.error("Erreur lors de la création du paiement"); }
     setActionLoading(false);
   }
 
@@ -42,7 +43,7 @@ export default function BillingPage() {
     try {
       const { portal_url } = await createPortal();
       if (portal_url) window.location.href = portal_url;
-    } catch (e) { console.error("Portal failed:", e); }
+    } catch { toast.error("Erreur lors de l'ouverture du portail"); }
     setActionLoading(false);
   }
 

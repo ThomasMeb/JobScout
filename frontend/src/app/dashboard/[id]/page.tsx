@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import AppShell from "@/components/AppShell";
+import { toast } from "sonner";
 import { getJob, updateJobFeedback } from "@/lib/api";
 import type { Job } from "@/lib/types";
 import { ArrowLeftIcon, ExternalLinkIcon, CheckIcon, CrossIcon, PenIcon } from "@/components/Icons";
@@ -54,8 +55,11 @@ export default function JobDetailPage() {
     try {
       const updated = await updateJobFeedback(job.id, status, notes || undefined);
       setJob(updated);
+      const labels: Record<string, string> = { interested: "Intéressé", applied: "Postulé", rejected: "Refusé" };
+      toast.success(labels[status] || "Mis à jour");
     } catch (e) {
       console.error(e);
+      toast.error("Erreur lors de la mise à jour");
     }
   }
 

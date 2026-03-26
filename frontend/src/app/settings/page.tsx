@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AuthGuard from "@/components/AuthGuard";
 import AppShell from "@/components/AppShell";
 import ProfileForm from "@/components/ProfileForm";
+import { toast } from "sonner";
 import { deleteAccount, getProfile, updateProfile } from "@/lib/api";
 import { createClient } from "@/lib/supabase-browser";
 import type { Profile } from "@/lib/types";
@@ -26,9 +27,14 @@ export default function SettingsPage() {
   }, []);
 
   async function handleSubmit(data: Partial<Profile>) {
-    await updateProfile(data as Record<string, unknown>);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      await updateProfile(data as Record<string, unknown>);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      toast.success("Paramètres enregistrés");
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
+    }
   }
 
   async function handleDeleteAccount() {
@@ -37,9 +43,11 @@ export default function SettingsPage() {
       await deleteAccount();
       const supabase = createClient();
       await supabase.auth.signOut();
+      toast.success("Compte supprimé");
       router.push("/");
     } catch (e) {
       console.error("Failed to delete account:", e);
+      toast.error("Erreur lors de la suppression du compte");
       setDeleting(false);
     }
   }

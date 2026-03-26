@@ -11,6 +11,7 @@ import JobTable from "@/components/JobTable";
 import StatsBar from "@/components/StatsBar";
 import WorkerStatus from "@/components/WorkerStatus";
 import { SearchIcon, DownloadIcon } from "@/components/Icons";
+import { toast } from "sonner";
 import { bulkFeedback, exportJobsCSV, getJobs, getProfile, getStats } from "@/lib/api";
 import type { Job, JobListResponse, Profile, UserStats } from "@/lib/types";
 
@@ -56,6 +57,7 @@ export default function DashboardPage() {
       setSelected(new Set());
     } catch (e) {
       console.error("Failed to load dashboard:", e);
+      toast.error("Erreur lors du chargement du tableau de bord");
     } finally {
       setLoading(false);
     }
@@ -90,8 +92,13 @@ export default function DashboardPage() {
 
   async function handleBulkAction(status: string) {
     if (selected.size === 0) return;
-    await bulkFeedback(Array.from(selected), status);
-    await fetchData();
+    try {
+      await bulkFeedback(Array.from(selected), status);
+      toast.success(`${selected.size} offre(s) mise(s) à jour`);
+      await fetchData();
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    }
   }
 
   const totalPages = Math.ceil(total / perPage);
@@ -175,7 +182,7 @@ export default function DashboardPage() {
               </div>
             )}
             <button
-              onClick={() => exportJobsCSV({ min_score: minScore || undefined, status: statusFilter || undefined })}
+              onClick={() => exportJobsCSV({ min_score: minScore || undefined, status: statusFilter || undefined }).then(() => toast.success("Export CSV téléchargé")).catch(() => toast.error("Erreur lors de l'export"))}
               className="ml-auto flex items-center gap-2 rounded border border-border px-3 py-1.5 text-sm text-text-secondary hover:border-border-hover hover:text-text-primary transition-colors"
             >
               <DownloadIcon size={14} />
