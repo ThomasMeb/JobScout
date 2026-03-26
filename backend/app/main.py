@@ -71,8 +71,24 @@ async def generic_error_handler(_request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Erreur interne du serveur"})
 
 
+import time as _time
+
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start = _time.monotonic()
+        response = await call_next(request)
+        duration = (_time.monotonic() - start) * 1000
+        if not request.url.path.startswith("/api/health"):
+            logger.info(f"{request.method} {request.url.path} → {response.status_code} ({duration:.0f}ms)")
+        return response
+
+
 settings = get_settings()
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],

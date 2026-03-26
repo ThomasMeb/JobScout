@@ -250,10 +250,15 @@ async def main():
         )
         raise
     finally:
-        # Cleanup Playwright browser if it was used
+        # Cleanup resources
         try:
             from job_agent.scrapers.browser import close_browser
             await close_browser()
+        except Exception:
+            pass
+        try:
+            from worker.scoring import close_llm_client
+            await close_llm_client()
         except Exception:
             pass
 

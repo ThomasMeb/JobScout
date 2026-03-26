@@ -53,12 +53,6 @@ export function softwareApplicationJsonLd() {
           "Scoring illimité, alertes Telegram, candidature automatique, recherche entreprise IA",
       },
     ],
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "50",
-      bestRating: "5",
-    },
   };
 }
 

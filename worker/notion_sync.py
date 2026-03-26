@@ -30,20 +30,20 @@ def _headers() -> dict:
     }
 
 
-def _notion_request(method: str, path: str, body: dict | None = None) -> dict | None:
+async def _notion_request(method: str, path: str, body: dict | None = None) -> dict | None:
     settings = get_settings()
     if not settings.notion_token:
         return None
 
     url = f"{NOTION_API}/{path}"
     try:
-        with httpx.Client(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             if method == "GET":
-                resp = client.get(url, headers=_headers())
+                resp = await client.get(url, headers=_headers())
             elif method == "POST":
-                resp = client.post(url, headers=_headers(), json=body or {})
+                resp = await client.post(url, headers=_headers(), json=body or {})
             elif method == "PATCH":
-                resp = client.patch(url, headers=_headers(), json=body or {})
+                resp = await client.patch(url, headers=_headers(), json=body or {})
             else:
                 return None
             resp.raise_for_status()
@@ -53,7 +53,7 @@ def _notion_request(method: str, path: str, body: dict | None = None) -> dict | 
         return None
 
 
-def setup_databases():
+async def setup_databases():
     """Create all required properties in the Jobs and Companies Notion databases."""
     settings = get_settings()
     jobs_db = settings.notion_jobs_db_id
@@ -61,7 +61,7 @@ def setup_databases():
 
     success = True
     if jobs_db:
-        result = _notion_request("PATCH", f"databases/{jobs_db}", {
+        result = await _notion_request("PATCH", f"databases/{jobs_db}", {
             "properties": {
                 "Titre": {"title": {}},
                 "Entreprise": {"rich_text": {}},
@@ -105,7 +105,7 @@ def setup_databases():
             success = False
 
     if companies_db:
-        result = _notion_request("PATCH", f"databases/{companies_db}", {
+        result = await _notion_request("PATCH", f"databases/{companies_db}", {
             "properties": {
                 "Nom": {"title": {}},
                 "Statut": {"select": {"options": [
@@ -163,7 +163,7 @@ async def sync_jobs_to_notion(user_id: str) -> int:
 
     synced = 0
     for job in jobs.data:
-        result = _notion_request("POST", "pages", {
+        result = await _notion_request("POST", "pages", {
             "parent": {"database_id": settings.notion_jobs_db_id},
             "properties": _job_to_notion_properties(job),
         })
@@ -201,7 +201,7 @@ async def sync_companies_to_notion(user_id: str) -> int:
 
     synced = 0
     for company in companies.data:
-        result = _notion_request("POST", "pages", {
+        result = await _notion_request("POST", "pages", {
             "parent": {"database_id": settings.notion_companies_db_id},
             "properties": _company_to_notion_properties(company),
         })
@@ -216,13 +216,13 @@ async def sync_companies_to_notion(user_id: str) -> int:
     return synced
 
 
-def update_notion_job_status(notion_page_id: str, status: str):
+async def update_notion_job_status(notion_page_id: str, status: str):
     """Update a job's status in Notion when it changes locally."""
     settings = get_settings()
     if not notion_page_id or not settings.notion_token:
         return
 
-    _notion_request("PATCH", f"pages/{notion_page_id}", {
+    await _notion_request("PATCH", f"pages/{notion_page_id}", {
         "properties": {
             "Statut": {"select": {"name": _map_status(status)}},
         },
@@ -286,7 +286,7 @@ async def pull_notion_changes(user_id: str) -> int:
         }
 
     # Query Notion database
-    result = _notion_request("POST", f"databases/{settings.notion_jobs_db_id}/query", {
+    result = await _notion_request("POST", f"databases/{settings.notion_jobs_db_id}/query", {
         **filter_body,
         "page_size": 100,
     })

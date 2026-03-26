@@ -103,6 +103,13 @@ def _get_llm_client() -> AsyncOpenAI:
     return _llm_client
 
 
+async def close_llm_client():
+    global _llm_client
+    if _llm_client is not None:
+        await _llm_client.close()
+        _llm_client = None
+
+
 async def call_llm(
     system_prompt: str,
     user_prompt: str,
