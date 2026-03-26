@@ -127,13 +127,13 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     <div key="cv" className="space-y-4">
       <h2 className="text-lg font-bold text-text-primary">Votre profil</h2>
       <div>
-        <label className={labelClass}>Nom</label>
-        <input type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: "" }); }} className={inputClass("name")} placeholder="Jean Dupont" />
+        <label htmlFor="field-name" className={labelClass}>Nom</label>
+        <input id="field-name" type="text" value={form.name} onChange={(e) => { setForm({ ...form, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: "" }); }} className={inputClass("name")} placeholder="Jean Dupont" />
         {errors.name && <p className="mt-1 text-xs text-negative">{errors.name}</p>}
       </div>
       <div>
-        <label className={labelClass}>CV (collez le texte)</label>
-        <textarea value={form.cv_text} onChange={(e) => { setForm({ ...form, cv_text: e.target.value }); if (errors.cv_text) setErrors({ ...errors, cv_text: "" }); }} rows={10} className={`${inputClass("cv_text")} font-mono text-sm`} placeholder="Collez le texte de votre CV ici..." />
+        <label htmlFor="field-cv" className={labelClass}>CV (collez le texte)</label>
+        <textarea id="field-cv" value={form.cv_text} onChange={(e) => { setForm({ ...form, cv_text: e.target.value }); if (errors.cv_text) setErrors({ ...errors, cv_text: "" }); }} rows={10} className={`${inputClass("cv_text")} font-mono text-sm`} placeholder="Collez le texte de votre CV ici..." />
         {errors.cv_text && <p className="mt-1 text-xs text-negative">{errors.cv_text}</p>}
         {form.cv_text.length > 0 && <p className={hintClass}>{form.cv_text.length} caractères</p>}
       </div>
@@ -143,8 +143,8 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     <div key="queries" className="space-y-4">
       <h2 className="text-lg font-bold text-text-primary">Recherche d&apos;emploi</h2>
       <div>
-        <label className={labelClass}>Requêtes de recherche (séparées par des virgules)</label>
-        <input type="text" value={form.search_queries} onChange={(e) => { setForm({ ...form, search_queries: e.target.value }); if (errors.search_queries) setErrors({ ...errors, search_queries: "" }); }} className={inputClass("search_queries")} placeholder="Ingénieur ML, Data Scientist, Ingénieur IA" />
+        <label htmlFor="field-queries" className={labelClass}>Requêtes de recherche (séparées par des virgules)</label>
+        <input id="field-queries" type="text" value={form.search_queries} onChange={(e) => { setForm({ ...form, search_queries: e.target.value }); if (errors.search_queries) setErrors({ ...errors, search_queries: "" }); }} className={inputClass("search_queries")} placeholder="Ingénieur ML, Data Scientist, Ingénieur IA" />
         {errors.search_queries && <p className="mt-1 text-xs text-negative">{errors.search_queries}</p>}
         <p className={hintClass}>Ces termes sont utilisés pour chercher sur les sites d&apos;emploi.</p>
       </div>
@@ -154,16 +154,16 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
     <div key="locations" className="space-y-4">
       <h2 className="text-lg font-bold text-text-primary">Préférences de localisation</h2>
       <div>
-        <label className={labelClass}>Localisations (séparées par des virgules)</label>
-        <input type="text" value={form.search_locations} onChange={(e) => setForm({ ...form, search_locations: e.target.value })} className={inputClass("search_locations")} placeholder="Paris, Lille, France" />
+        <label htmlFor="field-locations" className={labelClass}>Localisations (séparées par des virgules)</label>
+        <input id="field-locations" type="text" value={form.search_locations} onChange={(e) => setForm({ ...form, search_locations: e.target.value })} className={inputClass("search_locations")} placeholder="Paris, Lille, France" />
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="remote" checked={form.remote_accepted} onChange={(e) => setForm({ ...form, remote_accepted: e.target.checked })} className="h-4 w-4 rounded border-border accent-amber" />
         <label htmlFor="remote" className="text-sm text-text-secondary">Accepter les postes en télétravail</label>
       </div>
       <div>
-        <label className={labelClass}>Salaire minimum (EUR/an)</label>
-        <input type="number" value={form.min_salary} onChange={(e) => setForm({ ...form, min_salary: e.target.value })} min={0} max={500000} className={inputClass("min_salary")} placeholder="45000" />
+        <label htmlFor="field-salary" className={labelClass}>Salaire minimum (EUR/an)</label>
+        <input id="field-salary" type="number" value={form.min_salary} onChange={(e) => setForm({ ...form, min_salary: e.target.value })} min={0} max={500000} className={inputClass("min_salary")} placeholder="45000" />
       </div>
     </div>,
 
@@ -203,22 +203,22 @@ export default function ProfileForm({ profile, onSubmit, mode }: ProfileFormProp
         Notifications et budget <span className="text-sm font-normal text-text-muted">(optionnel)</span>
       </h2>
       <div>
-        <label className={labelClass}>Email de notification</label>
-        <input type="email" value={form.notification_email} onChange={(e) => setForm({ ...form, notification_email: e.target.value })} className={inputClass("notification_email")} placeholder="you@example.com" />
+        <label htmlFor="field-email" className={labelClass}>Email de notification</label>
+        <input id="field-email" type="email" value={form.notification_email} onChange={(e) => setForm({ ...form, notification_email: e.target.value })} className={inputClass("notification_email")} placeholder="you@example.com" />
         <p className={hintClass}>Résumé email pour les offres à haut score. Vide = désactivé.</p>
       </div>
       <div>
-        <label className={labelClass}>Telegram Chat ID</label>
-        <input type="text" value={form.telegram_chat_id} onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })} className={inputClass("telegram_chat_id")} placeholder="123456789" />
+        <label htmlFor="field-telegram" className={labelClass}>Telegram Chat ID</label>
+        <input id="field-telegram" type="text" value={form.telegram_chat_id} onChange={(e) => setForm({ ...form, telegram_chat_id: e.target.value })} className={inputClass("telegram_chat_id")} placeholder="123456789" />
         <p className={hintClass}>Envoyez /start à @userinfobot pour votre Chat ID.</p>
       </div>
       <div>
-        <label className={labelClass}>Score minimum pour les notifications</label>
-        <input type="number" value={form.min_score_notify} onChange={(e) => setForm({ ...form, min_score_notify: Number(e.target.value) })} min={0} max={100} className={inputClass("min_score_notify")} placeholder="70" />
+        <label htmlFor="field-minscore" className={labelClass}>Score minimum pour les notifications</label>
+        <input id="field-minscore" type="number" value={form.min_score_notify} onChange={(e) => setForm({ ...form, min_score_notify: Number(e.target.value) })} min={0} max={100} className={inputClass("min_score_notify")} placeholder="70" />
       </div>
       <div>
-        <label className={labelClass}>Budget IA mensuel (USD)</label>
-        <input type="number" value={form.monthly_budget_usd} onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })} min={0} max={100} step={0.5} className={inputClass("monthly_budget_usd")} placeholder="5.00" />
+        <label htmlFor="field-budget" className={labelClass}>Budget IA mensuel (USD)</label>
+        <input id="field-budget" type="number" value={form.monthly_budget_usd} onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })} min={0} max={100} step={0.5} className={inputClass("monthly_budget_usd")} placeholder="5.00" />
         <p className={hintClass}>Scoring en pause quand le budget est atteint. Défaut : 5 $.</p>
       </div>
     </div>,

@@ -43,20 +43,20 @@ export default function FilterBar({
 
   const filters = (
     <>
-      <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); onPageReset(); }} className={selectClass}>
+      <select aria-label="Filtrer par statut" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); onPageReset(); }} className={selectClass}>
         <option value="">Tous les statuts</option>
         <option value="new">Nouveau</option>
         <option value="interested">Intéressé</option>
         <option value="applied">Postulé</option>
         <option value="rejected">Refusé</option>
       </select>
-      <select value={minScore === "" ? "" : String(minScore)} onChange={(e) => { setMinScore(e.target.value ? Number(e.target.value) : ""); onPageReset(); }} className={selectClass}>
+      <select aria-label="Filtrer par score minimum" value={minScore === "" ? "" : String(minScore)} onChange={(e) => { setMinScore(e.target.value ? Number(e.target.value) : ""); onPageReset(); }} className={selectClass}>
         <option value="">Tout score</option>
         <option value="70">70+</option>
         <option value="50">50+</option>
         <option value="30">30+</option>
       </select>
-      <select value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); onPageReset(); }} className={selectClass}>
+      <select aria-label="Filtrer par source" value={sourceFilter} onChange={(e) => { setSourceFilter(e.target.value); onPageReset(); }} className={selectClass}>
         {SOURCES.map((s) => (
           <option key={s.value} value={s.value}>{s.label}</option>
         ))}
