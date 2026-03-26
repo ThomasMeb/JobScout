@@ -183,19 +183,14 @@ async def bulk_feedback(
     if len(payload.job_ids) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 offres par opération groupée")
 
-    updated = 0
-    for job_id in payload.job_ids:
-        result = (
-            sb.table("user_jobs")
-            .update({"status": payload.status})
-            .eq("id", job_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
-        if result.data:
-            updated += 1
-
-    return {"updated": updated}
+    result = (
+        sb.table("user_jobs")
+        .update({"status": payload.status})
+        .in_("id", payload.job_ids)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return {"updated": len(result.data) if result.data else 0}
 
 
 @router.get("/export/csv")

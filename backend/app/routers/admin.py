@@ -39,19 +39,21 @@ async def list_users(request: Request, admin_id: Annotated[str, Depends(_require
         .execute()
     )
 
-    users = []
-    for p in profiles.data or []:
-        # Count user jobs
-        jobs_count = (
-            sb.table("user_jobs")
-            .select("id", count="exact")
-            .eq("user_id", p["id"])
-            .execute()
-        )
-        users.append({
-            **p,
-            "total_jobs": jobs_count.count or 0,
-        })
+    # Batch count user_jobs per user (avoid N+1)
+    job_counts_result = (
+        sb.table("user_jobs")
+        .select("user_id")
+        .execute()
+    )
+    counts: dict[str, int] = {}
+    for row in job_counts_result.data or []:
+        uid = row["user_id"]
+        counts[uid] = counts.get(uid, 0) + 1
+
+    users = [
+        {**p, "total_jobs": counts.get(p["id"], 0)}
+        for p in (profiles.data or [])
+    ]
 
     return {"users": users, "total": len(users)}
 
