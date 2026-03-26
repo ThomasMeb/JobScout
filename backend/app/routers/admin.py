@@ -2,11 +2,12 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from supabase import create_client
 
 from app.auth import get_current_user_id
 from app.config import get_settings
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -27,7 +28,8 @@ def _require_admin(user_id: Annotated[str, Depends(get_current_user_id)]) -> str
 
 
 @router.get("/users")
-async def list_users(admin_id: Annotated[str, Depends(_require_admin)]):
+@limiter.limit("10/minute")
+async def list_users(request: Request, admin_id: Annotated[str, Depends(_require_admin)]):
     """List all users with plan and usage info."""
     sb = _get_admin_sb()
     profiles = (
@@ -55,7 +57,8 @@ async def list_users(admin_id: Annotated[str, Depends(_require_admin)]):
 
 
 @router.get("/scrapers")
-async def scraper_health(admin_id: Annotated[str, Depends(_require_admin)]):
+@limiter.limit("10/minute")
+async def scraper_health(request: Request, admin_id: Annotated[str, Depends(_require_admin)]):
     """Get scraper health metrics from recent runs."""
     sb = _get_admin_sb()
     runs = (
@@ -98,7 +101,8 @@ async def scraper_health(admin_id: Annotated[str, Depends(_require_admin)]):
 
 
 @router.get("/metrics")
-async def business_metrics(admin_id: Annotated[str, Depends(_require_admin)]):
+@limiter.limit("10/minute")
+async def business_metrics(request: Request, admin_id: Annotated[str, Depends(_require_admin)]):
     """Get business metrics: users, plans, jobs."""
     sb = _get_admin_sb()
 

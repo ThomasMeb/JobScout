@@ -2,14 +2,14 @@ import json
 import logging
 
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from slowapi import Limiter
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import get_settings
+from app.rate_limit import limiter
 from app.routers import admin, billing, health, jobs, profile, scrape_runs, stats
 
 
@@ -41,28 +41,6 @@ if _settings.sentry_dsn and isinstance(_settings.sentry_dsn, str) and _settings.
     )
 
 
-def _get_rate_limit_key(request: Request) -> str:
-    """Rate limit by user ID (from JWT) when available, fallback to IP.
-
-    NOTE: verify_signature=False is intentional here — this is NOT authentication.
-    We only extract the 'sub' claim for rate-limit bucketing. Actual auth happens
-    in get_current_user_id() which verifies the signature via Supabase.
-    """
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        import jwt as pyjwt
-        try:
-            payload = pyjwt.decode(auth[7:], options={"verify_signature": False})
-            user_id = payload.get("sub")
-            if user_id:
-                return f"user:{user_id}"
-        except Exception:
-            pass
-    return get_remote_address(request)
-
-
-limiter = Limiter(key_func=_get_rate_limit_key, default_limits=["60/minute"])
-
 app = FastAPI(
     title="JobScout SaaS API",
     version="0.1.0",
@@ -71,11 +49,8 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-
-
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(status_code=429, content={"detail": "Limite de requêtes dépassée"})
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 settings = get_settings()

@@ -9,6 +9,7 @@ from supabase import create_client
 
 from app.auth import get_current_user_id
 from app.config import get_settings
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/billing", tags=["billing"])
@@ -50,7 +51,9 @@ async def billing_status(
 
 
 @router.post("/checkout")
+@limiter.limit("5/minute")
 async def create_checkout(
+    request: Request,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     """Create a Stripe Checkout session for Pro subscription."""
@@ -91,7 +94,9 @@ async def create_checkout(
 
 
 @router.post("/portal")
+@limiter.limit("5/minute")
 async def create_portal(
+    request: Request,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     """Create a Stripe Customer Portal session for managing subscription."""

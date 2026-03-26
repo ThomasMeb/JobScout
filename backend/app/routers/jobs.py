@@ -4,12 +4,13 @@ import json
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from supabase import Client
 
 from app.auth import get_current_user_id, get_rls_supabase
 from app.models.job import BulkFeedback, JobFeedback, JobListResponse, JobRead
+from app.rate_limit import limiter
 
 
 def _parse_list(val: object) -> list[str]:
@@ -198,7 +199,9 @@ async def bulk_feedback(
 
 
 @router.get("/export/csv")
+@limiter.limit("5/minute")
 async def export_jobs_csv(
+    request: Request,
     user_id: Annotated[str, Depends(get_current_user_id)],
     sb: Annotated[Client, Depends(get_rls_supabase)],
     min_score: float | None = Query(default=None, ge=0, le=100),

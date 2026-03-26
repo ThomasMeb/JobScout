@@ -1,13 +1,14 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from supabase import Client, create_client
 
 from app.auth import get_current_user_id, get_rls_supabase
 from app.config import get_settings
 from app.models.profile import ProfileRead, ProfileUpdate
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -48,7 +49,9 @@ async def update_profile(
 
 
 @router.delete("/")
+@limiter.limit("3/minute")
 async def delete_account(
+    request: Request,
     user_id: Annotated[str, Depends(get_current_user_id)],
 ):
     """Delete the current user's account and all associated data (RGPD)."""
