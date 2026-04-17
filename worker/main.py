@@ -142,40 +142,91 @@ async def run_full_cycle(cycle_count: int) -> int:
     return await run_score_cycle(cycle_count)
 
 
+# PostgREST error codes that confirm the object is genuinely missing from the schema.
+# Anything else (network, 5xx, timeout) is treated as transient and must not trigger
+# a false "table missing" alert.
+_SCHEMA_MISSING_CODES = {"PGRST205", "PGRST106", "PGRST116", "42P01"}
+
+
+async def _probe_schema_object(sb, probe, label: str, max_retries: int = 2) -> tuple[bool, str | None]:
+    """Run a PostgREST probe and classify the outcome.
+
+    Returns (exists, detail):
+      - (True, None): probe succeeded
+      - (False, reason): PostgREST confirmed the object is missing
+      - (True, reason): probe failed but error is transient (network/5xx), skip
+    """
+    last_err_repr = None
+    for attempt in range(max_retries + 1):
+        try:
+            probe()
+            return True, None
+        except Exception as e:
+            code = getattr(e, "code", None)
+            code_str = str(code) if code is not None else ""
+            last_err_repr = f"{type(e).__name__}(code={code_str!r})"
+
+            # Confirmed "object missing" — no retry, report it.
+            if code_str in _SCHEMA_MISSING_CODES:
+                return False, f"postgrest code {code_str}"
+
+            # Everything else (5xx, timeout, connection reset, etc.) → transient.
+            if attempt < max_retries:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            logger.warning(
+                f"Schema probe for {label} failed after {max_retries + 1} attempts: {last_err_repr}"
+            )
+            return True, f"transient: {last_err_repr}"
+    return True, "unreachable"
+
+
 async def _validate_schema(settings):
-    """Check expected DB schema at startup. Logs warnings but does NOT block."""
+    """Check expected DB schema at startup. Logs warnings but does NOT block.
+
+    Only genuine "missing object" responses from PostgREST trigger alerts.
+    Transient network / 5xx errors are logged but never paged — Supabase via
+    Cloudflare occasionally returns 502, and we must not cry wolf on that.
+    """
     from worker.db import get_supabase
     sb = get_supabase()
-    warnings = []
+    missing: list[str] = []
 
     # Core tables
     for table in ["profiles", "raw_jobs", "user_jobs", "llm_usage", "scrape_runs"]:
-        try:
-            sb.table(table).select("*", count="exact").limit(0).execute()
-        except Exception:
-            warnings.append(f"CRITICAL: table '{table}' missing")
+        exists, reason = await _probe_schema_object(
+            sb,
+            lambda t=table: sb.table(t).select("*", count="exact").limit(0).execute(),
+            f"table '{table}'",
+        )
+        if not exists:
+            missing.append(f"CRITICAL: table '{table}' missing ({reason})")
 
     # Embedding infrastructure (only if enabled)
     if settings.embeddings_enabled:
-        try:
-            sb.table("profiles").select("embedding_threshold").limit(1).execute()
-        except Exception:
-            warnings.append("profiles.embedding_threshold column missing (migration 013)")
+        exists, reason = await _probe_schema_object(
+            sb,
+            lambda: sb.table("profiles").select("embedding_threshold").limit(1).execute(),
+            "profiles.embedding_threshold",
+        )
+        if not exists:
+            missing.append(f"profiles.embedding_threshold column missing (migration 013) ({reason})")
         for tbl in ["job_embeddings", "user_embeddings"]:
-            try:
-                sb.table(tbl).select("*", count="exact").limit(0).execute()
-            except Exception:
-                warnings.append(f"table '{tbl}' missing (migration 013)")
-
-    if warnings:
-        for w in warnings:
-            logger.warning(f"Schema check: {w}")
-        critical = [w for w in warnings if "CRITICAL" in w]
-        if critical:
-            await _send_crash_alert(
-                "⚠️ <b>JobScout Schema Warning</b>\n\n"
-                + "\n".join(f"• {w}" for w in warnings)
+            exists, reason = await _probe_schema_object(
+                sb,
+                lambda t=tbl: sb.table(t).select("*", count="exact").limit(0).execute(),
+                f"table '{tbl}'",
             )
+            if not exists:
+                missing.append(f"table '{tbl}' missing (migration 013) ({reason})")
+
+    if missing:
+        for w in missing:
+            logger.warning(f"Schema check: {w}")
+        await _send_crash_alert(
+            "⚠️ <b>JobScout Schema Warning</b>\n\n"
+            + "\n".join(f"• {w}" for w in missing)
+        )
     else:
         logger.info("Schema validation OK")
 
