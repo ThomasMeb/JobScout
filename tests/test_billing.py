@@ -108,7 +108,7 @@ class TestBillingPortal:
              patch("app.routers.billing._get_stripe", return_value=mock_stripe):
             resp = client.post("/api/billing/portal")
         assert resp.status_code == 400
-        assert "No billing account" in resp.json()["detail"]
+        assert "facturation" in resp.json()["detail"].lower()
 
 
 class TestBillingWebhook:

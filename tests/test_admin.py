@@ -63,7 +63,7 @@ class TestAdminAccess:
         tc, _ = non_admin_client
         resp = tc.get("/api/admin/users")
         assert resp.status_code == 403
-        assert "Admin access required" in resp.json()["detail"]
+        assert "administrateur" in resp.json()["detail"].lower()
 
     def test_non_admin_scrapers_rejected(self, non_admin_client):
         tc, _ = non_admin_client

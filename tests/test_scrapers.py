@@ -112,6 +112,11 @@ class TestScraperSourceNames:
         assert FranceTravailScraper().source_name == "francetravail"
 
     def test_jobspy_source_name(self):
+        # JobSpy is disabled in production (worker/tasks.py) and pulls in heavy
+        # deps (pandas, python-jobspy). Skip the import test if they're absent
+        # rather than failing CI.
+        pytest.importorskip("pandas")
+        pytest.importorskip("jobspy")
         from job_agent.scrapers.jobspy import JobSpyScraper
         assert JobSpyScraper().source_name == "jobspy"
 
