@@ -121,3 +121,86 @@ class TestTelegramDigest:
         assert rows[0][1]["url"] == "https://example.com/a"
         # Second job has no source_url → only the detail button
         assert len(rows[1]) == 1
+
+
+class TestMarkdownSafety:
+    """Regression coverage for the Telegram parse-error class of bugs.
+
+    A single unescaped underscore or asterisk in a job title used to drop the
+    entire digest with a silent 400 — this guards against that.
+    """
+
+    def test_md_escape_special_chars(self):
+        from worker.notifications import _md_escape
+        assert _md_escape("A_B") == r"A\_B"
+        assert _md_escape("Senior *Dev*") == r"Senior \*Dev\*"
+        assert _md_escape("[awesome](spam)") == r"\[awesome\](spam)"
+        assert _md_escape("`code`") == r"\`code\`"
+
+    def test_md_escape_handles_none_and_non_str(self):
+        from worker.notifications import _md_escape
+        assert _md_escape(None) == ""
+        assert _md_escape(42) == "42"
+
+    def test_digest_escapes_company_with_underscore(self):
+        from worker.notifications import _build_digest_text
+        jobs = [{
+            "match_score": 80,
+            "match_priority": "high",
+            "raw_jobs": {
+                "title": "Backend_Engineer",
+                "company": "ACME_Co",
+                "source_url": "https://example.com/job",
+            },
+        }]
+        text = _build_digest_text("user_name", jobs)
+        # No raw underscore in user-supplied content → cannot break Markdown
+        assert "ACME\\_Co" in text
+        assert "Backend\\_Engineer" in text
+        assert "user\\_name" in text
+
+    def test_digest_drops_link_when_url_has_paren(self):
+        """URLs with '(' or ')' break Markdown V1 link syntax — fall back to plain title."""
+        from worker.notifications import _build_digest_text
+        jobs = [{
+            "match_score": 80,
+            "match_priority": "low",
+            "raw_jobs": {
+                "title": "Job",
+                "company": "Co",
+                "source_url": "https://example.com/path(weird)",
+            },
+        }]
+        text = _build_digest_text("U", jobs)
+        # No Markdown link should be rendered — plain title only
+        assert "[Job](" not in text
+        assert "Job" in text
+
+    def test_digest_truncates_to_telegram_limit(self):
+        from worker.notifications import _build_digest_text, TELEGRAM_MAX_TEXT
+        jobs = [{
+            "match_score": 80,
+            "match_priority": "high",
+            "raw_jobs": {
+                "title": "T" * 200,
+                "company": "C" * 200,
+                "location": "L" * 200,
+                "source_url": "",
+            },
+        } for _ in range(50)]
+        text = _build_digest_text("U", jobs)
+        assert len(text) <= TELEGRAM_MAX_TEXT + 5  # +5 for the ellipsis suffix
+
+
+class TestStripMarkdown:
+    def test_strip_removes_link_keeps_text(self):
+        from worker.notifications import _strip_markdown
+        assert _strip_markdown("see [here](https://x.com)") == "see here"
+
+    def test_strip_removes_emphasis(self):
+        from worker.notifications import _strip_markdown
+        assert _strip_markdown("*bold* and _italic_ and `code`") == "bold and italic and code"
+
+    def test_strip_unescapes_backslashed(self):
+        from worker.notifications import _strip_markdown
+        assert _strip_markdown(r"A\_B") == "A_B"
