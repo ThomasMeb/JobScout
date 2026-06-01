@@ -36,14 +36,18 @@ def _md_escape(text: object) -> str:
 
 
 async def send_notifications():
-    """Send digests to users with new unnotified high-score jobs (email + Telegram)."""
+    """Send digests to users with new unnotified high-score jobs (email + Telegram).
+
+    Every "nothing sent" path is logged with an explicit reason, so a silent
+    weeks-long outage can be diagnosed from the logs alone instead of guessing.
+    """
     settings = get_settings()
 
     has_email = bool(settings.resend_api_key)
     has_telegram = bool(settings.telegram_bot_token)
 
     if not has_email and not has_telegram:
-        logger.info("No notification channels configured, skipping")
+        logger.warning("No notification channels configured (RESEND_API_KEY and TELEGRAM_BOT_TOKEN both empty), skipping")
         return
 
     sb = get_supabase()
@@ -56,10 +60,12 @@ async def send_notifications():
     )
 
     if not profiles.data:
+        logger.info("No onboarded users to notify")
         return
 
     total_email = 0
     total_telegram = 0
+    failed_sends = 0
 
     for user in profiles.data:
         user_id = user["id"]
@@ -67,6 +73,7 @@ async def send_notifications():
         chat_id = user.get("telegram_chat_id")
 
         if not email and not chat_id:
+            logger.info(f"User {user_id[:8]}...: no notification channel (email/telegram_chat_id both unset), skipping")
             continue
 
         min_score = user.get("min_score_notify") or 70
@@ -88,6 +95,28 @@ async def send_notifications():
         jobs = new_jobs.data or []
 
         if not jobs:
+            # Distinguish "scoring produced nothing" from "threshold too high"
+            # so the user knows whether to lower min_score_notify.
+            try:
+                below = (
+                    sb.table("user_jobs")
+                    .select("id", count="exact")
+                    .eq("user_id", user_id)
+                    .lt("match_score", min_score)
+                    .is_("notified_at", "null")
+                    .limit(0)
+                    .execute()
+                )
+                below_count = below.count or 0
+            except Exception:
+                below_count = -1
+            if below_count > 0:
+                logger.info(
+                    f"User {user_id[:8]}...: 0 jobs ≥ threshold {min_score}, but "
+                    f"{below_count} unnotified jobs below it — consider lowering min_score_notify"
+                )
+            else:
+                logger.info(f"User {user_id[:8]}...: no new unnotified jobs ≥ {min_score}")
             continue
 
         name = user.get("name") or ""
@@ -115,9 +144,21 @@ async def send_notifications():
             for jid in job_ids:
                 sb.table("user_jobs").update({"notified_at": now}).eq("id", jid).execute()
             logger.info(f"Notified user {user_id[:8]}...: {len(jobs)} jobs")
+        else:
+            # Critical: jobs matched but delivery failed on every channel.
+            # notified_at stays null so they're retried next cycle, but we
+            # must surface this — it's the silent-outage signature.
+            failed_sends += 1
+            logger.error(
+                f"User {user_id[:8]}...: {len(jobs)} jobs matched but ALL delivery "
+                f"channels failed (email={bool(email and has_email)}, "
+                f"telegram={bool(chat_id and has_telegram)}) — will retry next cycle"
+            )
 
     if total_email or total_telegram:
         logger.info(f"Notifications sent: {total_email} emails, {total_telegram} telegram")
+    if failed_sends:
+        logger.error(f"Notifications: {failed_sends} user(s) had matching jobs but delivery failed")
 
 
 def _format_salary(raw: dict) -> str:
