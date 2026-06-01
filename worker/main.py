@@ -145,7 +145,17 @@ async def run_full_cycle(cycle_count: int) -> int:
 # PostgREST error codes that confirm the object is genuinely missing from the schema.
 # Anything else (network, 5xx, timeout) is treated as transient and must not trigger
 # a false "table missing" alert.
-_SCHEMA_MISSING_CODES = {"PGRST205", "PGRST106", "PGRST116", "42P01"}
+#
+# - PGRST205: table not found in schema cache. AMBIGUOUS — often a stale cache
+#   right after a deploy/migration, not a truly missing table. Handled with an
+#   extended retry below before being accepted as "missing".
+# - PGRST106: requested schema doesn't exist (truly missing).
+# - 42P01:    PostgreSQL native undefined_table (truly missing).
+#
+# Notably absent: PGRST116 ("JSON object requested, multiple/no rows returned")
+# — that code is about result cardinality, not schema presence.
+_SCHEMA_MISSING_CODES_HARD = {"PGRST106", "42P01"}
+_SCHEMA_MISSING_CODES_AMBIGUOUS = {"PGRST205"}
 
 
 async def _probe_schema_object(sb, probe, label: str, max_retries: int = 2) -> tuple[bool, str | None]:
@@ -155,9 +165,19 @@ async def _probe_schema_object(sb, probe, label: str, max_retries: int = 2) -> t
       - (True, None): probe succeeded
       - (False, reason): PostgREST confirmed the object is missing
       - (True, reason): probe failed but error is transient (network/5xx), skip
+
+    PGRST205 specifically is retried more aggressively because the most common
+    cause is a stale PostgREST schema cache right after a deploy/migration —
+    not a truly missing table. We wait up to ~30s for the cache to refresh
+    before accepting it as missing.
     """
     last_err_repr = None
-    for attempt in range(max_retries + 1):
+    # Backoff schedule for PGRST205 (stale cache hypothesis): 2, 4, 8, 16s ≈ 30s total
+    pgrst205_backoff = [2, 4, 8, 16]
+    pgrst205_attempt = 0
+
+    attempt = 0
+    while True:
         try:
             probe()
             return True, None
@@ -166,19 +186,34 @@ async def _probe_schema_object(sb, probe, label: str, max_retries: int = 2) -> t
             code_str = str(code) if code is not None else ""
             last_err_repr = f"{type(e).__name__}(code={code_str!r})"
 
-            # Confirmed "object missing" — no retry, report it.
-            if code_str in _SCHEMA_MISSING_CODES:
+            # Hard "missing" — no retry, report immediately.
+            if code_str in _SCHEMA_MISSING_CODES_HARD:
                 return False, f"postgrest code {code_str}"
+
+            # Ambiguous "missing" (PGRST205 = stale cache OR truly missing).
+            # Retry up to len(pgrst205_backoff) times with longer waits.
+            if code_str in _SCHEMA_MISSING_CODES_AMBIGUOUS:
+                if pgrst205_attempt < len(pgrst205_backoff):
+                    wait = pgrst205_backoff[pgrst205_attempt]
+                    pgrst205_attempt += 1
+                    logger.info(
+                        f"Schema probe for {label}: {code_str} (likely stale cache), "
+                        f"retrying in {wait}s ({pgrst205_attempt}/{len(pgrst205_backoff)})"
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                # Exhausted extended retries → accept as truly missing.
+                return False, f"postgrest code {code_str} (persisted after extended retry)"
 
             # Everything else (5xx, timeout, connection reset, etc.) → transient.
             if attempt < max_retries:
-                await asyncio.sleep(2 * (attempt + 1))
+                attempt += 1
+                await asyncio.sleep(2 * attempt)
                 continue
             logger.warning(
-                f"Schema probe for {label} failed after {max_retries + 1} attempts: {last_err_repr}"
+                f"Schema probe for {label} failed after {max_retries + 1} transient attempts: {last_err_repr}"
             )
             return True, f"transient: {last_err_repr}"
-    return True, "unreachable"
 
 
 async def _validate_schema(settings):
@@ -192,11 +227,14 @@ async def _validate_schema(settings):
     sb = get_supabase()
     missing: list[str] = []
 
-    # Core tables
+    # Core tables. Use a lightweight existence probe — count="exact" on big
+    # tables (raw_jobs) can stall and timeout, producing false-positive 5xx
+    # noise. .select("id").limit(1) is instantaneous and answers the same
+    # question: "does PostgREST know about this table?".
     for table in ["profiles", "raw_jobs", "user_jobs", "llm_usage", "scrape_runs"]:
         exists, reason = await _probe_schema_object(
             sb,
-            lambda t=table: sb.table(t).select("*", count="exact").limit(0).execute(),
+            lambda t=table: sb.table(t).select("id").limit(1).execute(),
             f"table '{table}'",
         )
         if not exists:
@@ -214,7 +252,7 @@ async def _validate_schema(settings):
         for tbl in ["job_embeddings", "user_embeddings"]:
             exists, reason = await _probe_schema_object(
                 sb,
-                lambda t=tbl: sb.table(t).select("*", count="exact").limit(0).execute(),
+                lambda t=tbl: sb.table(t).select("id").limit(1).execute(),
                 f"table '{tbl}'",
             )
             if not exists:
