@@ -315,6 +315,15 @@ async def main():
     try:
         cycle_count = await run_full_cycle(cycle_count)
 
+        # Liveness signal after the first successful cycle. If the worker
+        # silently dies (compose `restart: on-failure:5` hits its limit after
+        # repeated crashes), this is the last alert that ever fires — its
+        # absence tells the operator the worker never made it past boot.
+        await _send_crash_alert(
+            f"✅ <b>JobScout Worker démarré</b>\n\n"
+            f"Premier cycle complet OK. Cycles: {cycle_count}."
+        )
+
         async def scrape_loop():
             while True:
                 await asyncio.sleep(settings.scrape_interval_hours * 3600)

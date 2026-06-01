@@ -30,9 +30,10 @@ class AdzunaScraper(BaseScraper):
 
         country = config.get("country", "fr")
         distance = config.get("distance_km", 100)
-        # Adzuna free tier = 250 calls / month. We cap calls per cycle
-        # aggressively to stay below quota even if the worker runs hourly.
-        max_calls = max(1, int(config.get("max_calls_per_cycle", 10)))
+        # Adzuna free tier = 250 calls / DAY (confirmed by 3scale rate-limit
+        # email). Cap aggressively: 5/cycle × theoretical 24 cycles = 120/day,
+        # leaving ~50% headroom for retries/transients.
+        max_calls = max(1, int(config.get("max_calls_per_cycle", 5)))
 
         jobs = []
         seen_urls = set()
