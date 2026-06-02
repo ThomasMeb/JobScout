@@ -26,7 +26,7 @@ docker compose -f "$COMPOSE_FILE" up -d
 echo "==> Waiting for backend health..."
 HEALTHY=false
 for i in $(seq 1 30); do
-    if docker compose -f "$COMPOSE_FILE" exec -T backend curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+    if docker compose -f "$COMPOSE_FILE" exec -T backend python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)" > /dev/null 2>&1; then
         echo "    Backend healthy!"
         HEALTHY=true
         break
@@ -47,9 +47,9 @@ if [ "$HEALTHY" = false ]; then
 fi
 
 echo "==> Verifying worker is running..."
-# The worker has `restart: on-failure:5` — if it crashes 5 times in a row
-# Docker stops trying and the service silently dies until the next deploy.
-# Catch that here instead of discovering it weeks later.
+# The worker uses `restart: unless-stopped`. Even so, verify it actually reached
+# "running" right after deploy — a bad image (e.g. missing browser binaries) can make
+# it crash-loop. Catch that here instead of discovering it weeks later via the watchdog.
 WORKER_STATE=$(docker compose -f "$COMPOSE_FILE" ps --format json worker 2>/dev/null | grep -o '"State":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
 if [ "$WORKER_STATE" != "running" ]; then
     echo "    ⚠️  Worker is NOT running (state: ${WORKER_STATE:-unknown})"

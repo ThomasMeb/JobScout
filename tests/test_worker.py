@@ -3,7 +3,6 @@ import asyncio
 import os
 from unittest.mock import patch
 
-import pytest
 
 
 class TestWorkerConfig:
