@@ -349,6 +349,9 @@ async def cleanup_old_jobs(sb, retention_days: int = 45):
     """Delete raw_jobs older than retention_days to keep the database lean.
 
     CASCADE on raw_jobs will automatically delete related user_jobs and job_embeddings.
+    Each batch is removed with a single grouped DELETE (id IN (...)) rather than one
+    request per row: the per-row pattern made the first post-outage cleanup of ~240k
+    stale jobs take hours and blocked the scoring/notification phase behind it.
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
 
@@ -368,12 +371,12 @@ async def cleanup_old_jobs(sb, retention_days: int = 45):
             break
 
         ids = [j["id"] for j in old_jobs.data]
-        for job_id in ids:
-            try:
-                sb.table("raw_jobs").delete().eq("id", job_id).execute()
-                total_deleted += 1
-            except Exception:
-                pass
+        try:
+            sb.table("raw_jobs").delete().in_("id", ids).execute()
+            total_deleted += len(ids)
+        except Exception as e:
+            logger.error(f"Batch delete of {len(ids)} old raw_jobs failed: {e}")
+            break
 
         if len(ids) < batch_size:
             break
