@@ -20,3 +20,20 @@ jobscout.mebarki.dev {
         }
     }
 }
+
+chessrank-ebs.mebarki.dev {
+    reverse_proxy 172.18.0.1:3001
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type"
+        X-Content-Type-Options nosniff
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+    log {
+        output file /data/logs/chessrank.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
