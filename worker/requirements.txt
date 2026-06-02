@@ -23,5 +23,9 @@ pydantic-settings>=2.5.0
 python-telegram-bot>=21.0
 notion-client>=2.0.0
 
+# Embeddings (3-tier pipeline)
+sentence-transformers>=2.2.0
+onnxruntime>=1.16.0
+
 # Observability
 sentry-sdk>=2.0.0

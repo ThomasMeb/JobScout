@@ -14,17 +14,23 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  // Read the persisted theme lazily on first render (client-only). Doing this in a
+  // useState initializer rather than inside the effect avoids the synchronous
+  // setState-in-effect anti-pattern (react-hooks/set-state-in-effect).
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = localStorage.getItem("theme");
+    return saved === "light" || saved === "dark" ? saved : "dark";
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme") as Theme | null;
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-    }
+    document.documentElement.setAttribute("data-theme", theme);
+    // The mount flag must flip after the first client render to avoid a theme
+    // flash / hydration mismatch — the one legitimate setState-from-effect here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-  }, []);
+  }, [theme]);
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";

@@ -4,7 +4,7 @@ import Logo from "@/components/Logo";
 import JsonLd from "@/components/JsonLd";
 import AnimatedSection from "@/components/AnimatedSection";
 import { organizationJsonLd, softwareApplicationJsonLd } from "@/lib/structured-data";
-import { SearchIcon, TargetIcon, ChartIcon, BellIcon, PenIcon, TrendingIcon, CheckIcon, CrossIcon } from "@/components/Icons";
+import { SearchIcon, TargetIcon, ChartIcon, BellIcon, PenIcon, TrendingIcon, CheckIcon } from "@/components/Icons";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
