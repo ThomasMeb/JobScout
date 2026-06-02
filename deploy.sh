@@ -46,6 +46,22 @@ if [ "$HEALTHY" = false ]; then
     exit 1
 fi
 
+echo "==> Verifying worker is running..."
+# The worker has `restart: on-failure:5` — if it crashes 5 times in a row
+# Docker stops trying and the service silently dies until the next deploy.
+# Catch that here instead of discovering it weeks later.
+WORKER_STATE=$(docker compose -f "$COMPOSE_FILE" ps --format json worker 2>/dev/null | grep -o '"State":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+if [ "$WORKER_STATE" != "running" ]; then
+    echo "    ⚠️  Worker is NOT running (state: ${WORKER_STATE:-unknown})"
+    echo "    Last 50 worker log lines:"
+    docker compose -f "$COMPOSE_FILE" logs worker --tail=50
+    echo "    Deployment continued but worker needs investigation."
+    echo "    Attempting one explicit restart..."
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps worker
+else
+    echo "    ✅ Worker is running."
+fi
+
 echo "==> Cleaning up old images..."
 docker image prune -f
 

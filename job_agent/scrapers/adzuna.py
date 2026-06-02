@@ -4,7 +4,7 @@ import os
 
 import httpx
 
-from job_agent.scrapers.base import BaseScraper, RawJob, retry_request
+from job_agent.scrapers.base import BaseScraper, RawJob
 
 ADZUNA_APP_ID = os.environ.get("ADZUNA_APP_ID", "")
 ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")
@@ -12,6 +12,10 @@ ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.adzuna.com/v1/api/jobs"
+
+
+class AdzunaQuotaExhaustedError(Exception):
+    """Raised on HTTP 429 — caller should stop calling Adzuna for this cycle."""
 
 
 class AdzunaScraper(BaseScraper):
@@ -26,20 +30,32 @@ class AdzunaScraper(BaseScraper):
 
         country = config.get("country", "fr")
         distance = config.get("distance_km", 100)
+        # Adzuna free tier = 250 calls / DAY (confirmed by 3scale rate-limit
+        # email). Cap aggressively: 5/cycle × theoretical 24 cycles = 120/day,
+        # leaving ~50% headroom for retries/transients.
+        max_calls = max(1, int(config.get("max_calls_per_cycle", 5)))
+
         jobs = []
         seen_urls = set()
+        calls_made = 0
 
         async with httpx.AsyncClient(timeout=30) as client:
             first_request = True
             for query in queries:
                 for location in locations:
+                    if calls_made >= max_calls:
+                        logger.info(
+                            f"Adzuna: hit per-cycle cap ({max_calls} calls), "
+                            f"stopping early to preserve monthly quota"
+                        )
+                        break
                     if not first_request:
                         await asyncio.sleep(2)
                     first_request = False
+                    calls_made += 1
 
                     try:
-                        resp = await retry_request(
-                            client, "GET",
+                        resp = await client.get(
                             f"{BASE_URL}/{country}/search/1",
                             params={
                                 "app_id": ADZUNA_APP_ID,
@@ -52,7 +68,20 @@ class AdzunaScraper(BaseScraper):
                                 "content-type": "application/json",
                             },
                         )
+                        # Hard-stop on 429: every retry burns more quota and the
+                        # API will keep refusing until the monthly window resets.
+                        if resp.status_code == 429:
+                            logger.warning(
+                                f"Adzuna 429 (quota exhausted) after {calls_made} calls — "
+                                f"aborting cycle; returning {len(jobs)} jobs scraped so far"
+                            )
+                            raise AdzunaQuotaExhaustedError(
+                                f"Adzuna monthly quota hit after {calls_made} calls"
+                            )
+                        resp.raise_for_status()
                         data = resp.json()
+                    except AdzunaQuotaExhaustedError:
+                        raise
                     except Exception as e:
                         logger.error(f"Adzuna error for '{query}' in '{location}': {e}")
                         continue
@@ -91,8 +120,11 @@ class AdzunaScraper(BaseScraper):
                             company_url=None,
                             posted_at=None,
                         ))
+                # Inner location loop done; honor the cap break.
+                if calls_made >= max_calls:
+                    break
 
-        logger.info(f"Adzuna: {len(jobs)} jobs found")
+        logger.info(f"Adzuna: {len(jobs)} jobs found ({calls_made} API calls)")
         return jobs
 
 

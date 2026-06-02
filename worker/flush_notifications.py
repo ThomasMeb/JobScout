@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from worker.config import get_settings
 from worker.db import get_supabase
-from worker.notifications import _send_telegram
+from worker.notifications import _md_escape, _send_telegram
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,17 +60,18 @@ async def flush():
         total = len(jobs)
         top_jobs = jobs[:20]
 
-        greeting = f"*{name}*, " if name else ""
+        greeting = f"*{_md_escape(name)}*, " if name else ""
         lines = [f"📬 {greeting}rattrapage : *{total} offres* accumulées\n"
                  f"Voici le top {len(top_jobs)} :"]
 
         for j in top_jobs:
             raw = j.get("raw_jobs") or {}
-            score = j.get("match_score", 0)
-            title = raw.get("title", "N/A")
-            company = raw.get("company", "N/A")
-            url = raw.get("source_url", "")
-            link = f"[{title}]({url})" if url else title
+            score = j.get("match_score") or 0
+            title = _md_escape(raw.get("title") or "N/A")
+            company = _md_escape(raw.get("company") or "N/A")
+            url = raw.get("source_url") or ""
+            # Markdown V1 links can't contain parens — fall back to plain title.
+            link = f"[{title}]({url})" if url and "(" not in url and ")" not in url else title
             lines.append(f"• *{score:.0f}* — {link}\n  🏢 {company}")
 
         if total > 20:

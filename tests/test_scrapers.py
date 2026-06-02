@@ -112,6 +112,11 @@ class TestScraperSourceNames:
         assert FranceTravailScraper().source_name == "francetravail"
 
     def test_jobspy_source_name(self):
+        # JobSpy is disabled in production (worker/tasks.py) and pulls in heavy
+        # deps (pandas, python-jobspy). Skip the import test if they're absent
+        # rather than failing CI.
+        pytest.importorskip("pandas")
+        pytest.importorskip("jobspy")
         from job_agent.scrapers.jobspy import JobSpyScraper
         assert JobSpyScraper().source_name == "jobspy"
 
@@ -160,3 +165,88 @@ class TestScraperConfig:
         from worker.config import SCRAPER_CONFIGS
         disabled = [k for k, v in SCRAPER_CONFIGS.items() if not v.get("enabled")]
         assert "indeed_rss" in disabled
+
+
+class TestAdzunaQuotaGuards:
+    """Regression coverage for Adzuna 250-call/month free-tier quota.
+
+    Without these guards we hit the cap in a few hours and stop getting jobs
+    from Adzuna for the rest of the month.
+    """
+
+    def test_quota_exhausted_error_class_exported(self):
+        from job_agent.scrapers.adzuna import AdzunaQuotaExhaustedError
+        assert issubclass(AdzunaQuotaExhaustedError, Exception)
+
+    @pytest.mark.asyncio
+    async def test_429_raises_quota_exhausted_no_retry(self, monkeypatch):
+        """A 429 must abort immediately — every retry burns more quota."""
+        from job_agent.scrapers import adzuna as adzuna_mod
+        from job_agent.scrapers.adzuna import AdzunaScraper, AdzunaQuotaExhaustedError
+
+        monkeypatch.setattr(adzuna_mod, "ADZUNA_APP_ID", "id")
+        monkeypatch.setattr(adzuna_mod, "ADZUNA_APP_KEY", "key")
+
+        call_count = 0
+
+        class FakeResp:
+            def __init__(self, status):
+                self.status_code = status
+                self.text = "rate limit"
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    raise httpx.HTTPStatusError("err", request=None, response=self)
+            def json(self):
+                return {}
+
+        class FakeClient:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return None
+            async def get(self, *a, **kw):
+                nonlocal call_count
+                call_count += 1
+                return FakeResp(429)
+
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: FakeClient())
+
+        with pytest.raises(AdzunaQuotaExhaustedError):
+            await AdzunaScraper().scrape(["dev"], ["Paris"], {"max_calls_per_cycle": 10})
+
+        # Critically: only ONE call before bailing — not 3 retries.
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_per_cycle_cap_enforced(self, monkeypatch):
+        """Cap on calls per cycle must trigger early break."""
+        from job_agent.scrapers import adzuna as adzuna_mod
+        from job_agent.scrapers.adzuna import AdzunaScraper
+
+        monkeypatch.setattr(adzuna_mod, "ADZUNA_APP_ID", "id")
+        monkeypatch.setattr(adzuna_mod, "ADZUNA_APP_KEY", "key")
+
+        call_count = 0
+
+        class FakeResp:
+            status_code = 200
+            def raise_for_status(self): return None
+            def json(self): return {"results": []}
+
+        class FakeClient:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *a): return None
+            async def get(self, *a, **kw):
+                nonlocal call_count
+                call_count += 1
+                return FakeResp()
+
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: FakeClient())
+        # Avoid the 2s sleep between requests in tests
+        monkeypatch.setattr(adzuna_mod.asyncio, "sleep", AsyncMock())
+
+        # 5 queries × 5 locations = 25 potential calls, capped at 3
+        await AdzunaScraper().scrape(
+            ["a", "b", "c", "d", "e"],
+            ["P", "L", "M", "N", "O"],
+            {"max_calls_per_cycle": 3},
+        )
+        assert call_count == 3

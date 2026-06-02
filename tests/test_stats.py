@@ -162,4 +162,5 @@ class TestScrapeRunsEndpoint:
     def test_scrape_runs_invalid_limit(self, client):
         tc, _ = client
         resp = tc.get("/api/scrape-runs/?limit=0")
-        assert resp.status_code == 422
+        # Global RequestValidationError handler rewrites 422 → 400
+        assert resp.status_code == 400

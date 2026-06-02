@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 import sentry_sdk
 
-from job_agent.scrapers.adzuna import AdzunaScraper
+from job_agent.scrapers.adzuna import AdzunaScraper, AdzunaQuotaExhaustedError
 from job_agent.scrapers.apec import APECScraper
 from job_agent.scrapers.base import RawJob
 from job_agent.scrapers.francetravail import FranceTravailScraper
@@ -55,6 +55,68 @@ def _job_hash(title: str, company: str, source_url: str) -> str:
     """SHA256 hash for deduplication — same logic as job_agent/storage.py."""
     raw = f"{title.lower().strip()}|{company.lower().strip()}|{source_url.strip()}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+# Quota-constrained sources we should not call every cycle. Map: source → min
+# hours between successful runs. Adzuna free tier is 250 calls / DAY (confirmed
+# via 3scale rate-limit alert), so we cap to ~once every 6 h regardless of how
+# often the worker wakes up.
+_QUOTA_GATED_SOURCES = {"adzuna": 6}
+
+# Cooldown after the source signaled rate-limited. For daily quotas like
+# Adzuna's, retrying within the same day is guaranteed to fail again — wait
+# for the daily reset.
+_RATE_LIMIT_COOLDOWN_HOURS = {"adzuna": 24}
+
+# Sources that should NOT receive the broad generic queries used for embedding
+# discovery — they consume quota fast and broad terms have low signal.
+_BROAD_QUERY_DENYLIST = {"adzuna"}
+
+
+def _was_recently_successful(sb, source: str, min_hours: int) -> bool:
+    """Return True if the source has a successful run within the last min_hours.
+
+    Used to skip quota-constrained APIs that don't need to be called every cycle.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=min_hours)).isoformat()
+    try:
+        result = (
+            sb.table("scrape_runs")
+            .select("id")
+            .eq("source", source)
+            .eq("status", "success")
+            .gte("started_at", cutoff)
+            .limit(1)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception as e:
+        # On DB hiccup, prefer scraping (false negative) over silent skip.
+        logger.warning(f"Could not check recent runs for {source}: {e}")
+        return False
+
+
+def _was_recently_rate_limited(sb, source: str, cooldown_hours: int) -> bool:
+    """Return True if the source was rate-limited within cooldown_hours.
+
+    Retrying a daily-quota API in the same day just burns more quota and
+    spams the user with 3scale alerts.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)).isoformat()
+    try:
+        result = (
+            sb.table("scrape_runs")
+            .select("id")
+            .eq("source", source)
+            .eq("status", "rate_limited")
+            .gte("started_at", cutoff)
+            .limit(1)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception as e:
+        logger.warning(f"Could not check rate-limit history for {source}: {e}")
+        return False
 
 
 async def scrape_global():
@@ -118,8 +180,30 @@ async def scrape_global():
         if not source_cfg.get("enabled", True):
             continue
 
-        logger.info(f"Scraping {source_key}...")
-        run_id = _log_scrape_start(sb, source_key, queries)
+        # Quota-gated sources (e.g. Adzuna free tier = 250 calls/day) must
+        # not run on every hourly cycle.
+        gate_hours = _QUOTA_GATED_SOURCES.get(source_key)
+        if gate_hours and _was_recently_successful(sb, source_key, gate_hours):
+            logger.info(f"{source_key}: skipping — last successful run < {gate_hours}h ago (quota gate)")
+            continue
+
+        # After a daily quota was hit, don't retry within the same day —
+        # the API will keep refusing and the user will keep getting alerts.
+        cooldown = _RATE_LIMIT_COOLDOWN_HOURS.get(source_key)
+        if cooldown and _was_recently_rate_limited(sb, source_key, cooldown):
+            logger.info(f"{source_key}: skipping — rate-limited within last {cooldown}h (waiting for quota reset)")
+            continue
+
+        # For quota-gated sources, drop the broad embedding-discovery queries:
+        # low signal, high quota cost.
+        if source_key in _BROAD_QUERY_DENYLIST and settings.embeddings_enabled:
+            user_only_queries = [q for q in queries if q not in (broad_queries if settings.embeddings_enabled else [])]
+            scraper_queries = user_only_queries or queries[:5]  # safety: keep at least a handful
+        else:
+            scraper_queries = queries
+
+        logger.info(f"Scraping {source_key} ({len(scraper_queries)} queries)...")
+        run_id = _log_scrape_start(sb, source_key, scraper_queries)
         t0 = time.monotonic()
 
         sentry_sdk.add_breadcrumb(
@@ -132,9 +216,16 @@ async def scrape_global():
         for attempt in range(max_retries + 1):
             try:
                 raw_jobs = await asyncio.wait_for(
-                    scraper.scrape(queries, locations, source_cfg),
+                    scraper.scrape(scraper_queries, locations, source_cfg),
                     timeout=scraper_timeout,
                 )
+                break
+            except AdzunaQuotaExhaustedError as e:
+                # 429 — do NOT retry, every retry burns more monthly quota.
+                duration = time.monotonic() - t0
+                logger.warning(f"Adzuna quota exhausted: {e}")
+                _log_scrape_finish(sb, run_id, 0, 0, "rate_limited", str(e), duration)
+                raw_jobs = None
                 break
             except asyncio.TimeoutError:
                 duration = time.monotonic() - t0

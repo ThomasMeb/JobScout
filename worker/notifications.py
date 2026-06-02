@@ -1,6 +1,7 @@
 """Notifications for scored jobs — email (Resend) and Telegram (interactive bot)."""
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -13,16 +14,40 @@ logger = logging.getLogger(__name__)
 RESEND_API_URL = "https://api.resend.com/emails"
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 
+# Telegram hard limit on message text is 4096 chars; leave headroom for emojis
+# and trailing footer added on truncation.
+TELEGRAM_MAX_TEXT = 3900
+
+# Markdown V1 special chars that break parsing if unbalanced inside literal
+# text. We escape them on every user-supplied field before interpolating.
+_MD_ESCAPE_RE = re.compile(r"([_*\[\]`])")
+
+
+def _md_escape(text: object) -> str:
+    """Escape Telegram Markdown V1 special chars in user-supplied content.
+
+    Without this, a job title like "Senior Dev (C++)" or a company "A_B_C"
+    breaks Telegram's parser and the API returns 400 — the user receives
+    nothing for that whole digest.
+    """
+    if text is None:
+        return ""
+    return _MD_ESCAPE_RE.sub(r"\\\1", str(text))
+
 
 async def send_notifications():
-    """Send digests to users with new unnotified high-score jobs (email + Telegram)."""
+    """Send digests to users with new unnotified high-score jobs (email + Telegram).
+
+    Every "nothing sent" path is logged with an explicit reason, so a silent
+    weeks-long outage can be diagnosed from the logs alone instead of guessing.
+    """
     settings = get_settings()
 
     has_email = bool(settings.resend_api_key)
     has_telegram = bool(settings.telegram_bot_token)
 
     if not has_email and not has_telegram:
-        logger.info("No notification channels configured, skipping")
+        logger.warning("No notification channels configured (RESEND_API_KEY and TELEGRAM_BOT_TOKEN both empty), skipping")
         return
 
     sb = get_supabase()
@@ -35,10 +60,12 @@ async def send_notifications():
     )
 
     if not profiles.data:
+        logger.info("No onboarded users to notify")
         return
 
     total_email = 0
     total_telegram = 0
+    failed_sends = 0
 
     for user in profiles.data:
         user_id = user["id"]
@@ -46,6 +73,7 @@ async def send_notifications():
         chat_id = user.get("telegram_chat_id")
 
         if not email and not chat_id:
+            logger.info(f"User {user_id[:8]}...: no notification channel (email/telegram_chat_id both unset), skipping")
             continue
 
         min_score = user.get("min_score_notify") or 70
@@ -67,6 +95,28 @@ async def send_notifications():
         jobs = new_jobs.data or []
 
         if not jobs:
+            # Distinguish "scoring produced nothing" from "threshold too high"
+            # so the user knows whether to lower min_score_notify.
+            try:
+                below = (
+                    sb.table("user_jobs")
+                    .select("id", count="exact")
+                    .eq("user_id", user_id)
+                    .lt("match_score", min_score)
+                    .is_("notified_at", "null")
+                    .limit(0)
+                    .execute()
+                )
+                below_count = below.count or 0
+            except Exception:
+                below_count = -1
+            if below_count > 0:
+                logger.info(
+                    f"User {user_id[:8]}...: 0 jobs ≥ threshold {min_score}, but "
+                    f"{below_count} unnotified jobs below it — consider lowering min_score_notify"
+                )
+            else:
+                logger.info(f"User {user_id[:8]}...: no new unnotified jobs ≥ {min_score}")
             continue
 
         name = user.get("name") or ""
@@ -94,9 +144,21 @@ async def send_notifications():
             for jid in job_ids:
                 sb.table("user_jobs").update({"notified_at": now}).eq("id", jid).execute()
             logger.info(f"Notified user {user_id[:8]}...: {len(jobs)} jobs")
+        else:
+            # Critical: jobs matched but delivery failed on every channel.
+            # notified_at stays null so they're retried next cycle, but we
+            # must surface this — it's the silent-outage signature.
+            failed_sends += 1
+            logger.error(
+                f"User {user_id[:8]}...: {len(jobs)} jobs matched but ALL delivery "
+                f"channels failed (email={bool(email and has_email)}, "
+                f"telegram={bool(chat_id and has_telegram)}) — will retry next cycle"
+            )
 
     if total_email or total_telegram:
         logger.info(f"Notifications sent: {total_email} emails, {total_telegram} telegram")
+    if failed_sends:
+        logger.error(f"Notifications: {failed_sends} user(s) had matching jobs but delivery failed")
 
 
 def _format_salary(raw: dict) -> str:
@@ -172,45 +234,59 @@ def _parse_keywords(value) -> list[str]:
 
 
 def _build_digest_text(name: str, jobs: list[dict]) -> str:
-    """Build an enriched digest message listing all jobs with details."""
-    greeting = f"📬 *{name}, " if name else "📬 *"
+    """Build an enriched digest message listing all jobs with details.
+
+    All user-supplied fields are escaped for Markdown V1 to avoid 400 parse
+    errors that would silently drop the entire digest.
+    """
+    greeting_name = _md_escape(name) if name else ""
+    greeting = f"📬 *{greeting_name}, " if greeting_name else "📬 *"
     lines = [f"{greeting}{len(jobs)} nouvelle{'s' if len(jobs) > 1 else ''} offre{'s' if len(jobs) > 1 else ''}*"]
     for job in jobs:
-        raw = job.get("raw_jobs", {})
-        score = job.get("match_score", 0)
+        raw = job.get("raw_jobs") or {}
+        score = job.get("match_score") or 0
         priority = (job.get("match_priority") or "low").lower()
         emoji = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(priority, "⚪")
         salary = _format_salary(raw)
         location = raw.get("location") or ""
-        remote = raw.get("remote_type", "")
+        remote = raw.get("remote_type") or ""
         remote_label = {"full": "🏠 Télétravail", "partial": "🔀 Hybride", "office": "🏢 Sur site"}.get(remote, "")
         match_kw = _parse_keywords(job.get("match_keywords"))
         missing_kw = _parse_keywords(job.get("missing_keywords"))
-        source_url = raw.get("source_url", "")
+        source_url = raw.get("source_url") or ""
 
-        title = raw.get("title", "N/A")
-        link = f"[{title}]({source_url})" if source_url else title
+        title = _md_escape(raw.get("title") or "N/A")
+        # A safe Markdown link requires no ')' in the URL; fall back to plain
+        # text otherwise — better a clean message than a parse failure.
+        if source_url and ")" not in source_url and "(" not in source_url:
+            link = f"[{title}]({source_url})"
+        else:
+            link = title
 
+        company = _md_escape(raw.get("company") or "N/A")
         block = f"{emoji} *{score:.0f}/100* — {link}"
-        block += f"\n🏢 {raw.get('company', 'N/A')}"
+        block += f"\n🏢 {company}"
         meta = []
         if location:
-            meta.append(f"📍 {location}")
+            meta.append(f"📍 {_md_escape(location)}")
         if remote_label:
             meta.append(remote_label)
         if salary:
-            meta.append(f"💰 {salary}")
+            meta.append(f"💰 {_md_escape(salary)}")
         if meta:
             block += f"\n{' · '.join(meta)}"
         if match_kw:
-            block += f"\n✅ {', '.join(match_kw[:6])}"
+            block += f"\n✅ {_md_escape(', '.join(match_kw[:6]))}"
         if missing_kw:
-            block += f"\n❌ {', '.join(missing_kw[:4])}"
+            block += f"\n❌ {_md_escape(', '.join(missing_kw[:4]))}"
 
         lines.append(block)
 
     lines.append("⬇️ _Clique sur une offre pour interagir_")
-    return "\n\n".join(lines)
+    text = "\n\n".join(lines)
+    if len(text) > TELEGRAM_MAX_TEXT:
+        text = text[:TELEGRAM_MAX_TEXT].rstrip() + "\n\n…"
+    return text
 
 
 def _build_digest_keyboard(jobs: list[dict]) -> dict:
@@ -233,27 +309,75 @@ def _build_digest_keyboard(jobs: list[dict]) -> dict:
     return {"inline_keyboard": buttons}
 
 
+def _strip_markdown(text: str) -> str:
+    """Remove Markdown V1 syntax for the plain-text fallback.
+
+    Drops [link](url) → "link" and unescaped *bold* / _italic_ / `code`
+    markers, while preserving the literal characters that were backslash-
+    escaped by _md_escape.
+    """
+    # [text](url) → text
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    # Protect backslash-escaped literals via private-use placeholders, so the
+    # next step doesn't strip them as if they were Markdown syntax.
+    placeholders = {"\\_": "\x00U", "\\*": "\x00S", "\\[": "\x00L", "\\]": "\x00R", "\\`": "\x00B"}
+    for esc, ph in placeholders.items():
+        text = text.replace(esc, ph)
+    # Now drop genuine Markdown markers.
+    text = re.sub(r"[*_`]", "", text)
+    # Restore the literals.
+    for esc, ph in placeholders.items():
+        text = text.replace(ph, esc[1])
+    return text
+
+
 async def _send_telegram(bot_token: str, chat_id: str, text: str, reply_markup: dict | None = None) -> bool:
-    """Send message via Telegram Bot API with optional inline keyboard."""
+    """Send a Telegram message with Markdown, falling back to plain text on parse failure.
+
+    Returns True iff the message was actually delivered. Detailed error context
+    (status, body, message length) is logged so operators can find the broken
+    field instead of seeing a silent failure.
+    """
     url = TELEGRAM_API_URL.format(token=bot_token)
     async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            payload = {
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "Markdown",
-                "disable_web_page_preview": True,
-            }
-            if reply_markup:
-                payload["reply_markup"] = json.dumps(reply_markup)
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                return True
-            logger.error(f"Telegram API error {resp.status_code}: {resp.text}")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to send Telegram to {chat_id}: {e}")
-            return False
+        for attempt, parse_mode in enumerate(["Markdown", None]):
+            try:
+                payload: dict = {
+                    "chat_id": chat_id,
+                    "text": text if parse_mode else _strip_markdown(text),
+                    "disable_web_page_preview": True,
+                }
+                if parse_mode:
+                    payload["parse_mode"] = parse_mode
+                if reply_markup:
+                    payload["reply_markup"] = json.dumps(reply_markup)
+
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    if attempt > 0:
+                        logger.warning(
+                            f"Telegram delivered to {chat_id} only after Markdown→plain fallback. "
+                            f"Inspect digest content for unescaped chars."
+                        )
+                    return True
+
+                # 400 → almost always a Markdown parse error. Retry without parse_mode.
+                if resp.status_code == 400 and parse_mode == "Markdown":
+                    logger.warning(
+                        f"Telegram 400 (likely Markdown parse) for {chat_id}, "
+                        f"len={len(text)}, body={resp.text[:300]}, falling back to plain text"
+                    )
+                    continue
+
+                logger.error(
+                    f"Telegram API error {resp.status_code} for {chat_id} "
+                    f"(parse_mode={parse_mode}, len={len(text)}): {resp.text[:300]}"
+                )
+                return False
+            except Exception as e:
+                logger.error(f"Failed to send Telegram to {chat_id} (parse_mode={parse_mode}): {e}")
+                return False
+        return False
 
 
 async def _send_email(api_key: str, from_email: str, to: str, subject: str, html: str) -> bool:
