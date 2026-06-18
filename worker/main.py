@@ -29,6 +29,10 @@ class JSONFormatter(logging.Formatter):
 handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[handler])
+# Prevent secret leakage: httpx logs full request URLs at INFO level, which
+# include the Telegram bot token (https://api.telegram.org/bot<TOKEN>/...).
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 

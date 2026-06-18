@@ -6,6 +6,11 @@ services:
       - ./data:/app/data
       - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   dashboard:
     build: .

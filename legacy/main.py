@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import contextlib
 import logging
+import signal
 
 from rich.logging import RichHandler
 
@@ -18,6 +20,10 @@ def setup_logging(verbose: bool = False):
         datefmt="[%X]",
         handlers=[RichHandler(rich_tracebacks=True)],
     )
+    # Prevent secret leakage: httpx logs full request URLs at INFO level, which
+    # include the Telegram bot token (https://api.telegram.org/bot<TOKEN>/...).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 async def run_once():
@@ -47,12 +53,25 @@ async def run_daemon():
             await app.updater.start_polling()
             logging.info("Telegram bot started. Waiting for commands...")
 
-            # Run scheduler loop
+            # Graceful shutdown: handle SIGTERM (Docker stop) and SIGINT so the
+            # scheduler/bot stop cleanly instead of being SIGKILLed (exit 137).
+            loop = asyncio.get_running_loop()
+            stop_event = asyncio.Event()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                with contextlib.suppress(NotImplementedError):
+                    loop.add_signal_handler(sig, stop_event.set)
+
+            sched_task = asyncio.create_task(scheduler.start())
+            stop_task = asyncio.create_task(stop_event.wait())
             try:
-                await scheduler.start()
-            except asyncio.CancelledError:
-                pass
+                await asyncio.wait(
+                    {sched_task, stop_task}, return_when=asyncio.FIRST_COMPLETED
+                )
             finally:
+                for task in (sched_task, stop_task):
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
                 await app.updater.stop()
                 await app.stop()
     else:
